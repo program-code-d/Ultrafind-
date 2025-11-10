@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UltraFind+ Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4b6cff;
+            --bg: #f5f7fb;
+            --text: #1a1a1a;
+            --muted: #657085;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: #fff;
+            padding: 16px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message.sent {
+            background: var(--primary);
+            color: white;
+            align-self: flex-end;
+            margin-left: 20%;
+        }
+
+        .message.received {
+            background: white;
+            color: var(--text);
+            align-self: flex-start;
+            margin-right: 20%;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .input-container {
+            background: #fff;
+            padding: 16px;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #eef0f5;
+            border-radius: var(--radius);
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .message-input:focus {
+            border-color: var(--primary);
+        }
+
+        .send-button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .send-button:active {
+            transform: scale(0.98);
+        }
+
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            background: white;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .typing-indicator.visible {
+            display: block;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        @media (max-width: 768px) {
+            .message {
+                max-width: 85%;
+            }
+
+            .input-container {
+                padding: 12px;
+            }
+
+            .message-input {
+                padding: 10px 14px;
+            }
+
+            .send-button {
+                padding: 10px 20px;
+            }
+        }
+    </style>
+</head>
+<body onload="main()">
+    <div class="chat-header">
+        <button class="back-button" onclick="goBack()">←</button>
+        <h2 id="chat-title">Chat</h2>
+    </div>
+    
+    <div class="chat-container" id="chat-container"></div>
+    
+    <div class="typing-indicator" id="typing-indicator">
+        User is typing...
+    </div>
+    
+    <div class="input-container">
+        <input type="text" class="message-input" id="message-input" placeholder="Type a message..." 
+               onkeypress="if(event.key === 'Enter') sendMessage()">
+        <button class="send-button" onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        var email;
+        var password;
+        var otherUser;
+        var messages = [];
+        const SERVER_IP = "http://192.168.50.134:8080";
+
+        function main() {
+            const userEmail = localStorage.getItem('userEmail');
+            const userPassword = localStorage.getItem('userPassword');
+            otherUser = localStorage.getItem('chatWithUser');
+
+            if (!userEmail || !userPassword || !otherUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            email = userEmail;
+            password = userPassword;
+            
+            // Update chat title
+            document.getElementById('chat-title').textContent = `Chat with ${otherUser}`;
+            
+            // Clear stored credentials
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userPassword');
+            localStorage.removeItem('chatWithUser');
+
+            // Load existing messages
+            loadMessages();
+
+            // Set up message polling
+            setInterval(loadMessages, 3000);
+        }
+
+        function goBack() {
+            localStorage.setItem('userEmail', email);
+            localStorage.setItem('userPassword', password);
+            window.location.href = 'index.html';
+        }
+
+        async function loadMessages() {
+            try {
+                const response = await fetch(SERVER_IP + '/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cmd: 'get_messages',
+                        email: email,
+                        password: password,
+                        other_user: otherUser
+                    })
+                });
+
+                const data = await response.json();
+                if (data.messages && !messagesEqual(data.messages, messages)) {
+                    messages = data.messages;
+                    displayMessages();
+                }
+            } catch (error) {
+                console.error('Failed to load messages:', error);
+            }
+        }
+
+        function messagesEqual(a, b) {
+            if (a.length !== b.length) return false;
+            return JSON.stringify(a) === JSON.stringify(b);
+        }
+
+        function displayMessages() {
+            const container = document.getElementById('chat-container');
+            container.innerHTML = '';
+
+            messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${msg.from === email ? 'sent' : 'received'}`;
+                
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                messageDiv.innerHTML = `
+                    ${msg.message}
+                    <div class="message-time">${time}</div>
+                `;
+                
+                container.appendChild(messageDiv);
+            });
+
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            try {
+                const response = await fetch(SERVER_IP + '/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cmd: 'send_message',
+                        email: email,
+                        password: password,
+                        to: otherUser,
+                        message: message
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    input.value = '';
+                    await loadMessages();
+                } else {
+                    alert('Failed to send message');
+                }
+            } catch (error) {
+                console.error('Failed to send message:', error);
+                alert('Failed to send message: ' + error.message);
+            }
+        }
+
+        // Handle typing indicator
+        let typingTimeout;
+        document.getElementById('message-input').addEventListener('input', () => {
+            clearTimeout(typingTimeout);
+            // TODO: Implement typing indicator through server
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UltraFind+</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --accent: #4b6cff;
+      --green: #5966d6;
+      --red: #f6b26b;
+      --muted: #657085;
+      --card-bg: #ffffff;
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 60%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    #home_screen {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      overflow: auto;
+    }
+
+    .top-decor {
+      position: relative;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(75, 108, 255, 0.08), rgba(89, 102, 214, 0.02));
+    }
+
+    .corner {
+      position: absolute;
+      /* moved down slightly so Android touch targets are easier to press */
+      top: 20px;
+      z-index: 18;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(36px, 6.2vw, 44px);
+      height: clamp(32px, 5.2vw, 38px);
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* small screens: nudge the corners further down to avoid OS UI overlap */
+    @media (max-width: 520px) {
+      .corner {
+        top: 28px;
+      }
+    }
+
+    .corner.plus {
+      left: 10px;
+      background: #ffffff;
+      box-shadow: 0 6px 14px rgba(16, 24, 40, 0.06);
+    }
+
+    .corner.plus::after {
+      content: '+';
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: var(--green);
+    }
+
+    .corner.profile {
+      right: 10px;
+      background: var(--red);
+      box-shadow: 0 6px 14px rgba(16, 24, 40, 0.05);
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: #fff;
+    }
+
+    .top-home {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: 700;
+      font-size: 1rem;
+      color: #101827;
+      cursor: pointer;
+    }
+
+    .brand {
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.9rem;
+      color: #111827;
+      font-weight: 800;
+    }
+
+    .brand p {
+      margin: 6px 0 0;
+      font-size: 0.95rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .underline {
+      width: 92%;
+      height: 50px;
+      border-radius: 12px;
+      background: linear-gradient(90deg, rgba(75, 108, 255, 0.95), rgba(46, 204, 113, 0.95));
+      margin: 22px auto 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: all 0.4s ease;
+      animation: gentleWidth 3.5s ease-in-out infinite;
+    }
+
+    @keyframes gentleWidth {
+
+      0%,
+      100% {
+        width: 92%;
+      }
+
+      50% {
+        width: 84%;
+      }
+    }
+
+    /* Stops animation when focused or filled */
+    .underline.stopped {
+      animation: none;
+      width: 92%;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      padding: 8px 18px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      background: transparent;
+      color: #0b1220;
+    }
+
+    .search-input::placeholder {
+      color: #0b1220cc;
+      font-style: italic;
+    }
+
+    #search_btn {
+      margin-left: 8px;
+      height: 42px;
+      min-width: 48px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #4b6cff 80%, #2ecc71 100%);
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(75, 108, 255, 0.10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #search_btn:active {
+      background: linear-gradient(90deg, #2ecc71 80%, #4b6cff 100%);
+    }
+
+    @media (max-width: 520px) {
+      #search_btn {
+        height: 38px;
+        min-width: 38px;
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+
+<body onload="main()">
+  <div id="home_screen"></div>
+
+  <script>
+    var email;
+    var password;
+
+    // Function to start a chat with a listing owner
+    function startChat(ownerEmail)
+    {
+      if (!email)
+      {
+        alert('Please log in to send messages');
+        window.location.href = 'login.html';
+        return;
+      }
+      // Open chat.html with the recipient's email
+      
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userPassword', password)
+      localStorage.setItem('chatWithUser', ownerEmail)
+      window.location.href=`chat.html`
+      //window.open(`chat.html?recipient=${encodeURIComponent(ownerEmail)}`, '_blank');
+    }
+    function main()
+    {
+
+      // Get user email from localStorage
+      const userEmail = localStorage.getItem('userEmail');
+      if (!userEmail)
+      {
+        window.location.href = 'login.html';
+        return;
+      }
+      const userPassword = localStorage.getItem('userPassword');
+      if (!userPassword)
+      {
+        window.location.href = 'login.html';
+        return;
+      }
+      email = userEmail;
+      password = userPassword;
+      // Clear credentials from localStorage after use
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userPassword');
+      draw_home_screen();
+    } var listings_to_display = [];
+    async function search()
+    {
+      const job_search = document.getElementById("search_job").value;
+      const SERVER_IP = "http://192.168.50.134:8080";  // Your server's IP address
+
+      // Show searching state
+      const home_screen = document.getElementById('home_screen');
+      const searchingHtml = `
+        <div style="padding:20px; color:#111827;">
+          <h3>Searching...</h3>
+          <p>Connecting to ${SERVER_IP}</p>
+        </div>`;
+      home_screen.innerHTML = searchingHtml;
+
+      try
+      {
+        console.log('Attempting to connect to:', SERVER_IP);
+        const res = await fetch(SERVER_IP + '/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ job_search: job_search, cmd: 'search_jobs' })
+        });
+
+        const responseJson = await res.json();
+        console.log('Search response:', responseJson);
+
+        // Accept a couple of possible shapes to be robust
+        const listings = (responseJson && responseJson.data && responseJson.data.listings_to_return) || responseJson.listings_to_return || [];
+
+        if (Array.isArray(listings) && listings.length > 0)
+        {
+          listings_to_display = listings;
+        } else
+        {
+          listings_to_display = [];
+        }
+        draw_home_screen();
+
+      } catch (err)
+      {
+        console.error('Failed to fetch search results:', err);
+        const errorMessage = `
+          <div style="padding:20px; color:#111827;">
+            <h3>Unable to connect to server</h3>
+            <p>Could not connect to ${SERVER_IP}</p>
+            <p>Make sure:</p>
+            <ul style="margin-left: 20px;">
+              <li>The server is running (node server.js)</li>
+              <li>You can access ${SERVER_IP} from this computer</li>
+              <li>No firewall is blocking the connection</li>
+              <li>The IP address is correct (currently using ${SERVER_IP})</li>
+            </ul>
+            <p style="margin-top:16px">Server error: ${err.message || 'Unknown error'}</p>
+          </div>`;
+        home_screen.innerHTML = errorMessage;
+      }
+    }
+    function new_listing()
+    {
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userPassword', password)
+      window.location.href = 'create_a_listing.html';
+    }
+    function settings()
+    {
+
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userPassword', password)
+      window.location.href = 'settings.html';
+
+    }
+    async function get_first_letter()
+    {
+      const SERVER_IP = "http://192.168.50.134:8080";
+      try
+      {
+        const res = await fetch(SERVER_IP + '/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            password: my_password,
+            email: my_email,
+            cmd: 'get_location'
+          })
+        });
+
+        const data = await res.json();
+        if (data && data.data && data.data.location)
+        {
+          my_location = data.data.location;
+          const cityInput = document.getElementById('city');
+          if (cityInput)
+          {
+            cityInput.value = my_location;
+            cityInput.placeholder = "Enter city (current: " + my_location + ")";
+          }
+        }
+      } catch (err)
+      {
+        console.error('Failed to fetch location:', err);
+      }
+    }
+    function draw_home_screen()
+    {
+      var listings = ``
+
+      if (Array.isArray(listings_to_display) && listings_to_display.length > 0)
+      {
+        for (var i = 0; i < listings_to_display.length; i++)
+        {
+          const item = listings_to_display[i] || {};
+          // Handle payment info display
+          let paymentText = "";
+          if (item.payinfo)
+          {
+            const amount = Number(item.payinfo.amount || 0);
+            if (amount > 0)
+            {
+              paymentText = item.payinfo.is_per_pay ?
+                `$${amount.toFixed(2)}/hr` :
+                `$${amount.toFixed(2)}`;
+            }
+          }
+          // Create image gallery
+          let images = `<div class="image-gallery" style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+            width: 100%;
+          ">`;
+
+          // Add each image
+          for (var k = 0; k < item.pic.length; k++)
+          {
+            const imgUrl = `http://192.168.50.134:8080${item.pic[k]}`;
+            images += `
+              <div style="
+                position: relative;
+                padding-top: 100%;
+                border-radius: 8px;
+                overflow: hidden;
+                background: #f5f5f5;
+              ">
+                <img 
+                  src="${imgUrl}" 
+                  alt="Listing photo ${k + 1}"
+                  onerror="this.src='https://via.placeholder.com/150?text=Image+Error'"
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                  "
+                />
+              </div>`;
+          }
+          images += `</div>`;
+
+          // If no images, show placeholder
+          if (item.pic.length === 0)
+          {
+            images = `<div style="
+              width: 100%;
+              height: 200px;
+              background: #f5f5f5;
+              border-radius: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #999;
+              margin-bottom: 16px;
+            ">No images available</div>`;
+          }
+
+          listings +=
+            `<div class="listing-card" style="position: relative; background: white; border-radius: 12px; padding: 16px; margin: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <div style="margin-bottom: 16px;">
+                <h3 style="font-size: 1.2rem; color: #333; margin-bottom: 8px;">${item.listing_title || ''}</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <button onclick="startChat('${item.ownerEmail}')" 
+                          style="background: #4b6cff; color: white; border: none; border-radius: 8px; padding: 8px 16px; 
+                                 cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    Message
+                  </button>
+                </div>
+              </div>
+              <div style="margin-bottom: 16px;">
+                ${images}
+              </div>
+              <p style="color: #555; margin-bottom: 16px; line-height: 1.5;">
+                ${item.description || ''}
+              </p>
+              <div style="display: flex; justify-content: space-between; align-items: center; 
+                          border-top: 1px solid #eee; padding-top: 12px; margin-top: 12px;">
+                <div style="display: flex; gap: 12px; align-items: center;">
+                  ${item.age ? `<span style="background: #f0f2f5; padding: 4px 8px; border-radius: 6px; font-size: 0.9rem;">${item.age}+</span>` : ''}
+                  ${item.city ? `<span style="color: #666; font-size: 0.9rem;">${item.city}</span>` : ''}
+                </div>
+                ${paymentText ? `<span style="background: #4b6cff; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 500;">${paymentText}</span>` : ''}
+              </div>
+            </div>`
+        }
+      } else
+      {
+        listings = `<div style="padding:16px;color:#657085">No listings found</div>`;
+      }
+      const home_screen = document.getElementById("home_screen");
+      home_screen.innerHTML = `
+        <div class="top-decor">
+          <div onclick="new_listing()" class="corner plus" title="Add"></div>
+          <div onclick="settings()" class="corner profile" title="Profile">P</div>
+          <div class="top-home" onclick="homeClick(this)">Home</div>
+          <div class="brand">
+            <h1>UltraFind+</h1>
+            <p>Opportunity Search</p>
+            <div class="underline">
+              <input class="search-input" id="search_job" type="search" placeholder="Search jobs or listings..." />
+              <button onclick="search()"id="search_btn" style="margin-left:8px; height:42px; min-width:48px; border:none; border-radius:10px; background:linear-gradient(90deg, #4b6cff 80%, #2ecc71 100%); color:#fff; font-size:1.5rem; font-weight:700; box-shadow:0 2px 8px rgba(75,108,255,0.10); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.2s;">
+                🔍
+              </button>
+            </div>
+          </div>
+          
+        </div>
+        ${listings}
+
+
+      `; document.querySelector('.corner.profile').textContent = 'A'; // Change to any le
+
+      const underline = home_screen.querySelector('.underline');
+      const input = underline.querySelector('.search-input');
+
+
+      function updateUnderline()
+      {
+        if (input === document.activeElement || input.value.trim() !== "")
+        {
+          underline.classList.add('stopped');
+        } else
+        {
+          underline.classList.remove('stopped');
+        }
+      }
+
+      input.addEventListener('focus', updateUnderline);
+      input.addEventListener('blur', updateUnderline);
+      input.addEventListener('input', updateUnderline);
+
+      // initial state
+      updateUnderline();
+    }
+
+    function homeClick(el)
+    {
+      el.classList.add('clicked');
+      setTimeout(() => el.classList.remove('clicked'), 300);
+    }
+
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,30 @@
+[
+  {
+    "email": "demo2@gmail.com",
+    "first_name": "A",
+    "last_name": "I",
+    "location": "Plymouth, Minnesota",
+    "password": "7588cbd0a0126f0802e19f7e71de90de21028b3cbd432ca559973765f5bc647e",
+    "salt": 593430760,
+    "listings": [
+      {
+        "listing_title": "Shovel the snow",
+        "pic": [
+          "/uploads/926ff14c943dd433867a97137db37214.jpeg"
+        ],
+        "description": "This is a mountain with snow",
+        "age": "18",
+        "city": "Plymouth, Minnesota",
+        "date": "2025-11-10",
+        "payinfo": {
+          "amount": 210,
+          "is_per_hour": false,
+          "repeat_type": "one_time",
+          "custom_repeat": null
+        },
+        "ownerEmail": "demo@gmail.com"
+      }
+    ],
+    "profile_pic": ""
+  }
+]

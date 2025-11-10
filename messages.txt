@@ -1,0 +1,8 @@
+[
+  {
+    "from": "beta@gmail.com",
+    "to": "beta@gmail.com",
+    "message": "nokogklxdfzg",
+    "timestamp": 1762706049812
+  }
+]

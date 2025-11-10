@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UltraFind➕ Login</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #a8edea, #fed6e3);
+        }
+
+        #login_screen,
+        #signup_screen {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(15px);
+            padding: 40px 45px;
+            border-radius: 20px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            color: #333;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        h1 {
+            margin-bottom: 25px;
+            font-size: 26px;
+            color: #444;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #555;
+            text-align: left;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 18px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            outline: none;
+            background: rgba(255, 255, 255, 0.7);
+            color: #333;
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="submit"],
+        input[type="button"] {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: #a8edea;
+            color: #333;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        input[type="submit"]:active,
+        input[type="button"]:active {
+            background: #fed6e3;
+            transform: scale(0.97);
+        }
+
+        button {
+            margin-top: 15px;
+            background: transparent;
+            border: 1px solid #555;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: #555;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.2s ease;
+        }
+
+        button:active {
+            background: #555;
+            color: #fff;
+            transform: scale(0.97);
+        }
+
+        #signup_screen {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #login_screen,
+        #signup_screen {
+            animation: fadeIn 0.5s ease;
+        }
+
+        .dropdown {
+            background: rgba(255, 255, 255, 0.95);
+            max-height: 150px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            display: none;
+            font-size: 14px;
+            color: #333;
+            text-align: left;
+            position: absolute;
+            width: calc(100% - 40px);
+            left: 20px;
+            z-index: 10;
+        }
+
+        .dropdown div {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .dropdown div:active {
+            background-color: #f0f0f0;
+        }
+
+        @media (max-width: 480px) {
+
+            #login_screen,
+            #signup_screen {
+                width: 90%;
+                padding: 30px 20px;
+            }
+
+            input[type="text"],
+            input[type="email"],
+            input[type="password"] {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <div id="login_screen"></div>
+    <div id="signup_screen"></div>
+
+    <script>
+        const cities = [
+            "Virginia Beach, VA, USA", "Oakland, CA, USA", "Minneapolis, MN, USA", "Tulsa, OK, USA", "Arlington, TX, USA",
+            "New Orleans, LA, USA", "Wichita, KS, USA", "Cleveland, OH, USA", "Tampa, FL, USA", "Aurora, CO, USA",
+            "Honolulu, HI, USA", "Anaheim, CA, USA", "Lexington, KY, USA", "St. Louis, MO, USA", "Reno, NV, USA",
+            "Anchorage, AK, USA", "Des Moines, IA, USA", "Salt Lake City, UT, USA", "Richmond, VA, USA", "Boise, ID, USA",
+            "Fremont, CA, USA", "Spokane, WA, USA", "Madison, WI, USA", "Hialeah, FL, USA", "Grand Rapids, MI, USA",
+            "Jersey City, NJ, USA", "Lincoln, NE, USA", "Toledo, OH, USA", "Buffalo, NY, USA", "Newark, NJ, USA",
+            "Saint Paul, MN, USA", "Rochester, MN, USA", "Bloomington, MN, USA", "Duluth, MN, USA", "Brooklyn Park, MN, USA",
+            "Plymouth, MN, USA", "Woodbury, MN, USA", "Maple Grove, MN, USA", "Blaine, MN, USA", "Lakeville, MN, USA",
+            "Eagan, MN, USA", "Burnsville, MN, USA", "Eden Prairie, MN, USA", "Coon Rapids, MN, USA", "Apple Valley, MN, USA",
+            "Minnetonka, MN, USA", "Edina, MN, USA", "St. Louis Park, MN, USA", "Moorhead, MN, USA", "Mankato, MN, USA",
+            "Shakopee, MN, USA", "New York, NY, USA", "Los Angeles, CA, USA", "Chicago, IL, USA", "Houston, TX, USA",
+            "Phoenix, AZ, USA", "Philadelphia, PA, USA", "San Antonio, TX, USA", "San Diego, CA, USA", "Dallas, TX, USA",
+            "San Jose, CA, USA", "Austin, TX, USA", "Jacksonville, FL, USA", "Fort Worth, TX, USA", "Columbus, OH, USA",
+            "Charlotte, NC, USA", "San Francisco, CA, USA", "Indianapolis, IN, USA", "Seattle, WA, USA", "Denver, CO, USA",
+            "Washington, DC, USA", "Boston, MA, USA", "El Paso, TX, USA", "Nashville, TN, USA", "Detroit, MI, USA",
+            "Oklahoma City, OK, USA", "Portland, OR, USA", "Las Vegas, NV, USA", "Memphis, TN, USA", "Louisville, KY, USA",
+            "Baltimore, MD, USA", "Pittsburgh, PA, USA", "Milwaukee, WI, USA", "Albuquerque, NM, USA", "Tucson, AZ, USA",
+            "Fresno, CA, USA", "Sacramento, CA, USA", "Kansas City, MO, USA", "Mesa, AZ, USA", "Atlanta, GA, USA",
+            "Omaha, NE, USA", "Raleigh, NC, USA", "Miami, FL, USA", "Long Beach, CA, USA", "Bakersfield, CA, USA",
+            "Arlington, VA, USA", "Colorado Springs, CO, USA", "Corpus Christi, TX, USA", "Durham, NC, USA",
+            "Fort Wayne, IN, USA", "Greensboro, NC, USA", "Henderson, NV, USA", "Irving, TX, USA", "Laredo, TX, USA",
+            "Lubbock, TX, USA", "Plano, TX, USA", "Santa Ana, CA, USA", "St. Petersburg, FL, USA", "Stockton, CA, USA",
+            "Baton Rouge, LA, USA", "Toronto, ON, Canada", "Montreal, QC, Canada", "Vancouver, BC, Canada",
+            "Calgary, AB, Canada", "London, England, UK", "Paris, Île-de-France, France", "Berlin, Germany", "Rome, Italy",
+            "Madrid, Spain", "Tokyo, Japan", "Seoul, South Korea", "Beijing, China", "Sydney, Australia"
+        ];
+
+        function main()
+        {
+            document.getElementById("signup_screen").style.display = "none";
+            document.getElementById("login_screen").innerHTML = `
+        <h1>Welcome to UltraFind➕</h1>
+        <form>
+          <label>Email:</label>
+          <input type="email" id="email_signin" placeholder="Enter your Email" required>
+          <label>Password:</label>
+          <input type="password" id="password_signin" placeholder="Enter your password" required>
+          <input type="button" onclick="sign_in()" value="Sign in">
+        </form>
+        <button onclick="switch_to_sign_up()">Sign Up</button>
+      `;
+
+            document.getElementById("signup_screen").innerHTML = `
+        <h1>Create Your Account</h1>
+        <form>
+          <label>Email:</label>
+          <input type="email" id="email_signup" placeholder="Enter your Email" required>
+
+          <label>First Name:</label>
+          <input type="text" id="first_name" placeholder="First name" required>
+
+          <label>Last Name:</label>
+          <input type="text" id="last_name" placeholder="Last name" required>
+
+          <label>City & State:</label>
+          <input type="text" id="cityInput" placeholder="Detecting your city..." required autocomplete="off">
+          <div id="cityDropdown" class="dropdown"></div>
+
+          <label>Password:</label>
+          <input type="password" id="password" placeholder="Enter your password" required>
+
+          <label>Confirm Password:</label>
+          <input type="password" id="confirm_password" placeholder="Confirm your password" required>
+
+          <input onclick="submit_signup()" type="button" value="Sign Up">
+        </form>
+      `;
+
+            setupCitySearch();
+            detectLocation();
+        }
+
+        async function detectLocation()
+        {
+            const cityInput = document.getElementById("cityInput");
+            try
+            {
+                const res = await fetch('https://ipapi.co/json/');
+                const data = await res.json();
+                if (data.city && data.region)
+                    cityInput.value = `${data.city}, ${data.region}`;
+                else cityInput.placeholder = "Enter your city, state";
+            } catch
+            {
+                cityInput.placeholder = "Enter your city, state";
+            }
+        }
+
+        function submit_signup()
+        {
+            const p = document.getElementById("password").value;
+            const cp = document.getElementById("confirm_password").value;
+            if (p !== cp) return alert("Passwords do not match");
+
+            const email = document.getElementById("email_signup").value;
+            const first_name = document.getElementById("first_name").value;
+            const last_name = document.getElementById("last_name").value;
+            const location = document.getElementById("cityInput").value;
+            const SERVER_IP = "http://192.168.50.134:8080";
+
+            // Validate required fields
+            if (!email || !first_name || !last_name || !location || !p) {
+                alert("Please fill in all fields");
+                return;
+            }
+
+            console.log('Attempting signup for:', email);
+            
+            fetch(SERVER_IP + '/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    email, 
+                    first_name, 
+                    last_name, 
+                    location, 
+                    password: p, 
+                    cmd: 'sign_up' 
+                })
+            })
+            .then(res => {
+                if (!res.ok) {
+                    console.error('Server response not OK:', res.status);
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
+            .then(payload => {
+                console.log('Server response:', payload);
+                if (payload?.signed_up === 1 || payload?.data?.signed_up === 1) {
+                    localStorage.setItem('userEmail', email);
+                    localStorage.setItem('userPassword', p);
+                    window.location.href = 'index.html';
+                } else {
+                    throw new Error('Signup failed - server returned unsuccessful response');
+                }
+            })
+            .catch(error => {
+                console.error('Signup error:', error);
+                alert('Signup failed: ' + (error.message || 'Network error. Please check your connection and try again.'));
+            });
+        }
+
+        function switch_to_sign_up()
+        {
+            document.getElementById("login_screen").style.display = "none";
+            document.getElementById("signup_screen").style.display = "block";
+            setupCitySearch();
+            detectLocation();
+        }
+
+        function sign_in()
+        {
+            const email = document.getElementById("email_signin").value;
+            const password = document.getElementById("password_signin").value;
+            const SERVER_IP = "http://192.168.50.134:8080";
+
+            fetch(SERVER_IP + '/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: email, password, cmd: 'login' })
+            }).then(res => res.json()).then(payload =>
+            {
+                if (payload?.login_success === 1 || payload?.data?.login_success === 1)
+                {
+                    // Store the email and password from the input fields
+                    localStorage.setItem('userEmail', email);
+                    localStorage.setItem('userPassword', document.getElementById("password_signin").value);
+                    window.location.href = 'index.html';
+                } else alert('Login failed.');
+            }).catch(() => alert('Request failed.'));
+        }
+
+        function setupCitySearch()
+        {
+            const cityInput = document.getElementById("cityInput");
+            const cityDropdown = document.getElementById("cityDropdown");
+            if (!cityInput) return;
+
+            cityInput.addEventListener("input", () =>
+            {
+                const input = cityInput.value.toLowerCase();
+                cityDropdown.innerHTML = "";
+                if (!input) return cityDropdown.style.display = "none";
+                const filtered = cities.filter(c => c.toLowerCase().includes(input));
+                if (!filtered.length) return cityDropdown.style.display = "none";
+
+                filtered.forEach(city =>
+                {
+                    const div = document.createElement("div");
+                    div.textContent = city;
+                    div.addEventListener("click", () =>
+                    {
+                        cityInput.value = city;
+                        cityDropdown.style.display = "none";
+                    });
+                    cityDropdown.appendChild(div);
+                });
+                cityDropdown.style.display = "block";
+            });
+
+            document.addEventListener("click", e =>
+            {
+                if (e.target !== cityInput) cityDropdown.style.display = "none";
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Settings</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f9fafb;
+            --text: #111827;
+            --radius: 14px;
+            --shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            margin: 0;
+            font-family: "Poppins", sans-serif;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text);
+            font-size: 1.9rem;
+            margin-bottom: 24px;
+        }
+
+        .settings-container {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 480px;
+            padding: 28px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .settings-container button {
+            background: #f3f4f6;
+            border: none;
+            border-radius: 10px;
+            padding: 16px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.25s ease;
+            width: 100%;
+            color: #1f2937;
+        }
+
+        .settings-container button:hover,
+        .settings-container button:active {
+            background: var(--primary);
+            color: #fff;
+            transform: scale(1.03);
+        }
+
+        #modalOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+
+        #modalOverlay.open {
+            display: flex;
+            animation: fadeIn 0.25s ease forwards;
+        }
+
+        #modalBox {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            width: 90%;
+            max-width: 400px;
+            padding: 24px;
+            text-align: center;
+            transform: translateY(10px);
+            animation: slideUp 0.35s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(40px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        input {
+            width: 90%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            font-size: 1rem;
+        }
+
+        .modal-actions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .btn-cancel,
+        .btn-save {
+            border: none;
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 40%;
+        }
+
+        .btn-cancel {
+            background: #e5e7eb;
+            color: #111;
+        }
+
+        .btn-save {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-cancel:active,
+        .btn-save:active {
+            transform: scale(0.97);
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            .settings-container button {
+                font-size: 1rem;
+                padding: 14px;
+            }
+
+            input {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <h1>Account Settings</h1>
+    <div class="settings-container" id="settings_screen"></div>
+
+    <div id="modalOverlay">
+        <div id="modalBox"></div>
+    </div>
+
+    <script>
+        function openModal(contentHTML)
+        {
+            const overlay = document.getElementById('modalOverlay');
+            const box = document.getElementById('modalBox');
+            box.innerHTML = contentHTML;
+            overlay.classList.add('open');
+        }
+
+        function closeModal()
+        {
+            document.getElementById('modalOverlay').classList.remove('open');
+        }
+
+        async function easy_request(requestData)
+        {
+            const SERVER_IP = "http://192.168.50.134:8080";
+
+            const payload = JSON.stringify({
+                ...requestData,
+                email: email,
+                password: password
+            });
+
+            console.log('Sending request:', requestData);
+
+            try
+            {
+                const response = await fetch(SERVER_IP + '/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: payload
+                });
+
+                if (!response.ok)
+                {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success === false)
+                {
+                    throw new Error(data.error || 'Operation failed');
+                }
+
+                return data;
+            } catch (error)
+            {
+                console.error('Request failed:', error);
+                throw error;
+            }
+        }
+
+
+        async function saveChange(type)
+        {
+            try
+            {
+                const value = document.getElementById('inputField')?.value || '';
+
+                if (!value.trim())
+                {
+                    alert('Please enter a valid value');
+                    return;
+                }
+
+                let payload = { cmd: '' };
+
+                switch (type)
+                {
+                    case 'Email':
+                        payload = {
+                            cmd: 'change_email',
+                            new_email: value
+                        };
+                        break;
+
+                    case 'Password':
+                        const oldPassword = document.getElementById('oldPasswordField')?.value;
+                        const confirmPassword = document.getElementById('confirmPasswordField')?.value;
+
+                        if (!oldPassword || !confirmPassword)
+                        {
+                            alert('Please fill in all password fields');
+                            return;
+                        }
+                        if (value !== confirmPassword)
+                        {
+                            alert('New passwords do not match');
+                            return;
+                        }
+
+                        payload = {
+                            cmd: 'change_password',
+                            new_password: value
+                        };
+                        break;
+
+                    case 'Age':
+                        const age = parseInt(value);
+                        if (isNaN(age) || age < 1 || age > 120)
+                        {
+                            alert('Please enter a valid age between 1 and 120');
+                            return;
+                        }
+                        payload = {
+                            cmd: 'change_age',
+                            age: age
+                        };
+                        break;
+
+                    case 'Location':
+                        payload = {
+                            cmd: 'change_location',
+                            location: value
+                        };
+                        break;
+
+                    case 'ProfilePic':
+                        const fileInput = document.getElementById('inputField');
+                        if (!fileInput.files || !fileInput.files[0])
+                        {
+                            alert('Please select an image file');
+                            return;
+                        }
+
+                        const file = fileInput.files[0];
+                        const reader = new FileReader();
+
+                        try
+                        {
+                            const base64Image = await new Promise((resolve, reject) =>
+                            {
+                                reader.onload = () => resolve(reader.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(file);
+                            });
+
+                            await easy_request({
+                                cmd: 'update_profile_pic',
+                                image: base64Image
+                            });
+
+                            localStorage.setItem('userProfilePic', base64Image);
+                            closeModal();
+                            alert('Profile picture updated successfully');
+                            return;
+                        } catch (error)
+                        {
+                            throw new Error('Failed to upload profile picture: ' + error.message);
+                        }
+                }
+
+                await easy_request(payload);
+
+                // Update local storage for successful changes
+                if (type !== 'Password')
+                {
+                    localStorage.setItem(`user${type}`, value);
+                }
+
+                closeModal();
+                alert(`${type} updated successfully`);
+
+            } catch (error)
+            {
+                console.error('Failed to save changes:', error);
+                alert('Failed to update ' + type.toLowerCase() + ': ' + error.message);
+            }
+        }
+
+
+        function change_email()
+        {
+            openModal(`
+        <h3>Change Email</h3>
+        <input id="inputField" type="email" placeholder="Enter new email">
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+          <button class="btn-save" onclick="saveChange('Email')">Save</button>
+        </div>
+      `);
+        }
+
+        function change_password()
+        {
+            openModal(`
+        <h3>Change Password</h3>
+        <input id="oldPasswordField" type="password" placeholder="Current Password">
+        <input id="inputField" type="password" placeholder="New Password">
+        <input id="confirmPasswordField" type="password" placeholder="Confirm New Password">
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn-save" onclick="saveChange('Password')">Save</button>
+        </div>
+    `);
+        }
+
+        function change_name()
+        {
+            openModal(`
+        <h3>Change Name</h3>
+        <input id="firstNameField" type="text" placeholder="Enter first name">
+        <input id="lastNameField" type="text" placeholder="Enter last name">
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn-save" onclick="saveNameChange()">Save</button>
+        </div>
+    `);
+        }
+
+        async function saveNameChange()
+        {
+            const firstName = document.getElementById('firstNameField')?.value || '';
+            const lastName = document.getElementById('lastNameField')?.value || '';
+
+            if (!firstName.trim() || !lastName.trim())
+            {
+                alert('Please enter both first and last name');
+                return;
+            }
+
+            try
+            {
+                await easy_request({
+                    cmd: "change_name",
+                    first_name: firstName,
+                    last_name: lastName
+                });
+
+                localStorage.setItem('userFirstName', firstName);
+                localStorage.setItem('userLastName', lastName);
+                closeModal();
+                alert('Name updated successfully');
+            } catch (error)
+            {
+                console.error('Failed to update name:', error);
+                alert('Failed to update name: ' + error.message);
+            }
+        }
+
+        function upload_profile_pic()
+        {
+            openModal(`
+        <h3>Upload Profile Picture</h3>
+        <input id="inputField" type="file" accept="image/*">
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+          <button class="btn-save" onclick="saveChange('ProfilePic')">Upload</button>
+        </div>
+      `);
+        }
+
+        function change_age()
+        {
+            openModal(`
+        <h3>Change Age</h3>
+        <input id="inputField" type="number" min="1" max="120" placeholder="Enter age">
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+          <button class="btn-save" onclick="saveChange('Age')">Save</button>
+        </div>
+      `);
+        }
+
+        // --- Geolocation-based location detection ---
+        function change_location()
+        {
+            openModal(`<h3>Detecting location…</h3><p>Please allow location access.</p>`);
+
+            if (!navigator.geolocation)
+            {
+                alert('Geolocation not supported. Please enter your city manually.');
+                enterCustomLocation('');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) =>
+                {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    try
+                    {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                        const data = await res.json();
+                        const city = data.address.city || data.address.town || data.address.village || '';
+                        enterCustomLocation(city);
+                    } catch (err)
+                    {
+                        console.error('Reverse geocoding failed:', err);
+                        enterCustomLocation('');
+                    }
+                },
+                (err) =>
+                {
+                    console.error('Geolocation error:', err);
+                    enterCustomLocation('');
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        function enterCustomLocation(prefill = '')
+        {
+            openModal(`
+        <h3>Enter your location</h3>
+        <input id="inputField" type="text" placeholder="Type your city" value="${prefill}" list="suggestionsList">
+        <datalist id="suggestionsList">
+          <option value="New York"></option>
+          <option value="Los Angeles"></option>
+          <option value="Chicago"></option>
+          <option value="Houston"></option>
+          <option value="Miami"></option>
+        </datalist>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+          <button class="btn-save" onclick="saveCustomLocation()">Save</button>
+        </div>
+      `);
+        }
+
+        function saveCustomLocation()
+        {
+            const loc = document.getElementById('inputField')?.value || '';
+            if (!loc.trim()) { alert('Please enter a location.'); return; }
+            localStorage.setItem('userLocation', loc);
+            window.location.href = 'index.html';
+        }
+        var email;
+        var password;
+        function main()
+        {
+            const userEmail = localStorage.getItem('userEmail');
+            const userPassword = localStorage.getItem('userPassword');
+            if (!userEmail || !userPassword)
+            {
+                window.location.href = 'login.html';
+                return;
+            }
+            email = userEmail
+            password = userPassword
+            document.getElementById("settings_screen").innerHTML = `
+        <button onclick="change_name()">Change Name</button>
+        <button onclick="change_email()">Change Email</button>
+        <button onclick="change_password()">Change Password</button>
+        <button onclick="change_location()">Change Location</button>
+        
+        <button onclick="change_age()">Change Age</button>
+      `;
+        }
+
+        document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target.id === 'modalOverlay') closeModal(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    </script>
+</body>
+
+</html>
