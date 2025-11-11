@@ -257,6 +257,26 @@
     let filter_age_min = 0, filter_age_max = 120, filter_location = '';
     let saved_listing_ids = [];
 
+    // Helper: robust image source resolver
+    function getImageSrc(p)
+    {
+      if (!p) return '';
+      // If already a full URL
+      if (p.startsWith('http://') || p.startsWith('https://')) return p;
+      // If starts with slash, assume relative path
+      if (p.startsWith('/')) return p;
+      // If Windows path, take basename
+      try
+      {
+        const parts = p.replace(/\\/g, '/').split('/');
+        const name = parts[parts.length - 1];
+        return '/uploads/' + name;
+      } catch (e)
+      {
+        return '/' + p;
+      }
+    }
+
     // Function to start a chat with a listing owner
     function startChat(ownerEmail)
     {
@@ -534,6 +554,85 @@
       search();
     }
 
+    // Filters popover controls and location autocomplete
+    let _citiesCache = null;
+    function toggleFilters()
+    {
+      const pop = document.getElementById('filtersPopover');
+      if (!pop) return;
+      pop.style.display = pop.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function onLocationInput()
+    {
+      const input = document.getElementById('filter_location');
+      const suggestions = document.getElementById('locSuggestions');
+      if (!input || !suggestions) return;
+      const q = input.value.trim();
+      if (!q)
+      {
+        suggestions.style.display = 'none';
+        suggestions.innerHTML = '';
+        return;
+      }
+
+      try
+      {
+        if (!_citiesCache)
+        {
+          const res = await fetch(SERVER_URL, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd: 'get_cities' })
+          });
+          const data = await res.json();
+          _citiesCache = (data && data.cities) || [];
+        }
+
+        const ql = q.toLowerCase();
+        const matches = _citiesCache.filter(c => c.toLowerCase().includes(ql)).slice(0, 10);
+        if (matches.length === 0)
+        {
+          suggestions.style.display = 'none';
+          suggestions.innerHTML = '';
+          return;
+        }
+
+        suggestions.style.display = 'block';
+        suggestions.innerHTML = matches.map(m => `<div class="loc-sugg" style="padding:8px; cursor:pointer; border-bottom:1px solid #f3f4f6;">${m}</div>`).join('');
+        // attach click handlers
+        Array.from(suggestions.querySelectorAll('.loc-sugg')).forEach((el) =>
+        {
+          el.onclick = () => { input.value = el.textContent; suggestions.style.display = 'none'; onFilterChange(); };
+        });
+
+      } catch (e)
+      {
+        console.error('Failed to load city suggestions', e);
+        suggestions.style.display = 'none';
+      }
+    }
+
+    function clearFilters()
+    {
+      const a = document.getElementById('filter_age_min');
+      const b = document.getElementById('filter_age_max');
+      const l = document.getElementById('filter_location');
+      if (a) a.value = 0;
+      if (b) b.value = 120;
+      if (l) l.value = '';
+      const suggestions = document.getElementById('locSuggestions');
+      if (suggestions) { suggestions.style.display = 'none'; suggestions.innerHTML = ''; }
+      filter_age_min = 0; filter_age_max = 120; filter_location = '';
+      search();
+    }
+
+    function applyFiltersAndClose()
+    {
+      onFilterChange();
+      const pop = document.getElementById('filtersPopover');
+      if (pop) pop.style.display = 'none';
+    }
+
     async function get_first_letter()
     {
       const SERVER_IP = SERVER_URL;
@@ -600,8 +699,8 @@
           // Add each image
           for (var k = 0; k < item.pic.length; k++)
           {
-            // Use relative path so server on same origin serves it
-            const imgUrl = item.pic[k].startsWith('/') ? item.pic[k] : ('/' + item.pic[k]);
+            // Resolve image path robustly
+            const imgUrl = getImageSrc(item.pic[k]);
             images += `
               <div style="
                 position: relative;
@@ -610,10 +709,10 @@
                 overflow: hidden;
                 background: #f5f5f5;
               ">
-                <img 
-                  src="${imgUrl}" 
+                <img
+                  src="${imgUrl}"
                   alt="Listing photo ${k + 1}"
-                  onerror="this.src='https://via.placeholder.com/150?text=Image+Error'"
+                  onerror="(function(img){ try{ const parts=img.src.split('/'); const name=parts[parts.length-1]; img.onerror=null; img.src='/uploads/'+name; }catch(e){ img.src='https://via.placeholder.com/150?text=Image+Error'; } })(this)"
                   style="
                     position: absolute;
                     top: 0;
@@ -649,8 +748,10 @@
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                   <h3 style="font-size: 1.2rem; color: #333; margin: 0; flex: 1;">${item.listing_title || ''}</h3>
                   <button onclick="toggleSaveListing('${item.id}')" data-listing-id="${item.id}" data-save-btn
-                          style="background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 4px; color: ${saved_listing_ids.includes(item.id) ? '#e53e3e' : '#999'}; transition: color 0.2s;">
-                    ❤️
+                          style="background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 4px; color: ${saved_listing_ids.includes(item.id) ? '#e53e3e' : '#999'}; transition: color 0.2s;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M6 2C5.44772 2 5 2.44772 5 3V20.382C5 21.1183 5.85786 21.5339 6.46275 21.0107L12 16.618L17.5372 21.0107C18.1421 21.5339 19 21.1183 19 20.382V3C19 2.44772 18.5523 2 18 2H6Z" />
+                    </svg>
                   </button>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -709,15 +810,23 @@
           </div>
           
         </div>
-        <div class="filters">
-          <div class="filter-group">
-            <label>Age:</label>
-            <input type="number" id="filter_age_min" min="0" max="120" value="0" style="width:50px;" onchange="onFilterChange()"> -
-            <input type="number" id="filter_age_max" min="0" max="120" value="120" style="width:50px;" onchange="onFilterChange()">
-          </div>
-          <div class="filter-group">
-            <label>Location:</label>
-            <input type="text" id="filter_location" placeholder="City..." style="width:120px;" onchange="onFilterChange()">
+        <div style="position:relative;">
+          <button id="filtersBtn" onclick="toggleFilters()" style="background:#fff;border:1px solid #e6e9ef;padding:8px 12px;border-radius:10px;cursor:pointer;font-size:0.95rem;">Filters ▾</button>
+          <div id="filtersPopover" style="display:none; position:absolute; top:42px; left:0; background:#fff; border:1px solid #eee; box-shadow:0 8px 20px rgba(0,0,0,0.08); padding:12px; border-radius:10px; z-index:70; min-width:260px;">
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+              <label style="font-size:0.9rem; color:#333; min-width:40px;">Age</label>
+              <input type="number" id="filter_age_min" min="0" max="120" value="0" style="width:70px; padding:6px;" onchange="onFilterChange()"> -
+              <input type="number" id="filter_age_max" min="0" max="120" value="120" style="width:70px; padding:6px;" onchange="onFilterChange()">
+            </div>
+            <div style="margin-bottom:8px;">
+              <label style="font-size:0.9rem; color:#333;">Location</label>
+              <input type="text" id="filter_location" placeholder="Start typing city..." style="width:100%; padding:8px; margin-top:6px;" oninput="onLocationInput()" onchange="onFilterChange()">
+              <div id="locSuggestions" style="display:none; max-height:120px; overflow:auto; border:1px solid #eee; margin-top:6px; border-radius:6px;"></div>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+              <button onclick="clearFilters()" style="background:#f3f4f6;border:none;padding:8px 12px;border-radius:8px;">Clear</button>
+              <button onclick="applyFiltersAndClose()" style="background:linear-gradient(90deg,#4b6cff,#2ecc71); color:#fff; border:none; padding:8px 12px; border-radius:8px;">Apply</button>
+            </div>
           </div>
         </div>
         ${listings}

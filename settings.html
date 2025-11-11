@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Settings</title>
     <style>
         :root {
@@ -190,12 +190,42 @@
             const overlay = document.getElementById('modalOverlay');
             const box = document.getElementById('modalBox');
             box.innerHTML = contentHTML;
+            // After injecting content, wire small show-password toggles if there are password inputs
+            addShowPasswordButtons();
             overlay.classList.add('open');
         }
 
         function closeModal()
         {
             document.getElementById('modalOverlay').classList.remove('open');
+        }
+
+        function addShowPasswordButtons()
+        {
+            const box = document.getElementById('modalBox');
+            if (!box) return;
+            const pwdInputs = box.querySelectorAll('input[type=password]');
+            pwdInputs.forEach(inp =>
+            {
+                if (inp._hasShowBtn) return;
+                inp._hasShowBtn = true;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = 'Show';
+                btn.style.marginLeft = '8px';
+                btn.style.fontSize = '0.85rem';
+                btn.style.padding = '6px 8px';
+                btn.style.borderRadius = '6px';
+                btn.style.border = '1px solid #e5e7eb';
+                btn.style.background = '#fff';
+                btn.style.cursor = 'pointer';
+                btn.onclick = () =>
+                {
+                    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Hide'; }
+                    else { inp.type = 'password'; btn.textContent = 'Show'; }
+                };
+                inp.parentNode.insertBefore(btn, inp.nextSibling);
+            });
         }
 
         async function easy_request(requestData)

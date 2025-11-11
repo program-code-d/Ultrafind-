@@ -277,6 +277,36 @@
             setupCitySearch();
             detectLocation();
             setupPasswordStrengthIndicator();
+            setupShowPasswordToggles();
+        }
+
+        function setupShowPasswordToggles()
+        {
+            const ids = ['password_signin', 'password', 'confirm_password'];
+            ids.forEach(id =>
+            {
+                const inp = document.getElementById(id);
+                if (!inp) return;
+                // avoid adding twice
+                if (inp._hasShowBtn) return;
+                inp._hasShowBtn = true;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = 'Show';
+                btn.style.marginLeft = '8px';
+                btn.style.fontSize = '0.85rem';
+                btn.style.padding = '6px 8px';
+                btn.style.borderRadius = '6px';
+                btn.style.border = '1px solid #e5e7eb';
+                btn.style.background = '#fff';
+                btn.style.cursor = 'pointer';
+                btn.onclick = () =>
+                {
+                    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Hide'; }
+                    else { inp.type = 'password'; btn.textContent = 'Show'; }
+                };
+                inp.parentNode.insertBefore(btn, inp.nextSibling);
+            });
         }
 
         async function detectLocation()

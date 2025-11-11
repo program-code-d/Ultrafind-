@@ -577,6 +577,13 @@ function handleRequest(req, res) {
       return;
     }
 
+    // Return list of known cities for client-side autocomplete
+    if (cmd === "get_cities") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, cities: cities }));
+      return;
+    }
+
     if (cmd === "search_jobs") {
       const query = (parsed.job_search || "").toLowerCase();
       const listings = [];
@@ -643,7 +650,20 @@ function handleRequest(req, res) {
         timestamp: Date.now(),
       });
 
-      saveMessages();
+      try {
+        saveMessages();
+      } catch (e) {
+        console.error("Failed to save messages:", e);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            success: false,
+            error: "Server error saving message",
+          })
+        );
+        return;
+      }
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: true }));
       return;
