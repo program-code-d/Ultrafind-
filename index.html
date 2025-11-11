@@ -255,6 +255,7 @@
     const SERVER_URL = '/';
     let listings_to_display = [];
     let filter_age_min = 0, filter_age_max = 120, filter_location = '';
+    let saved_listing_ids = [];
 
     // Function to start a chat with a listing owner
     function startChat(ownerEmail)
@@ -273,6 +274,65 @@
       window.location.href = `chat.html`
       //window.open(`chat.html?recipient=${encodeURIComponent(ownerEmail)}`, '_blank');
     }
+
+    async function toggleSaveListing(listingId)
+    {
+      if (!email || !password) return;
+      const isSaved = saved_listing_ids.includes(listingId);
+      const cmd = isSaved ? 'unsave_listing' : 'save_listing';
+      try
+      {
+        const res = await fetch(SERVER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cmd: cmd, email: email, password: password, listing_id: listingId })
+        });
+        const data = await res.json();
+        if (data.success)
+        {
+          if (isSaved)
+          {
+            saved_listing_ids = saved_listing_ids.filter(id => id !== listingId);
+          } else
+          {
+            saved_listing_ids.push(listingId);
+          }
+          // Update button appearance
+          const btn = document.querySelector(`[data-listing-id="${listingId}"][data-save-btn]`);
+          if (btn)
+          {
+            btn.style.color = saved_listing_ids.includes(listingId) ? '#e53e3e' : '#999';
+          }
+        }
+      } catch (e)
+      {
+        console.error('Error saving listing:', e);
+      }
+    }
+
+    async function viewSavedListings()
+    {
+      if (!email || !password) return;
+      try
+      {
+        const res = await fetch(SERVER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cmd: 'get_saved_listings', email: email, password: password })
+        });
+        const data = await res.json();
+        if (data.success && data.listings)
+        {
+          listings_to_display = data.listings;
+          document.getElementById("search_job").value = "Saved Listings";
+          draw_home_screen();
+        }
+      } catch (e)
+      {
+        console.error('Error loading saved listings:', e);
+      }
+    }
+
     function main()
     {
 
@@ -294,6 +354,28 @@
       // Clear credentials from localStorage after use
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userPassword');
+
+      // Load saved listings from server
+      (async function loadSavedListings()
+      {
+        try
+        {
+          const res = await fetch(SERVER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd: 'get_saved_listings', email: email, password: password })
+          });
+          const data = await res.json();
+          if (data.success && data.listings)
+          {
+            saved_listing_ids = data.listings.map(l => l.id);
+          }
+        } catch (e)
+        {
+          console.log('Could not load saved listings');
+        }
+      })();
+
       // Load default listings on first load
       loadAllListings();
     }
@@ -301,60 +383,17 @@
     async function search()
     {
       const job_search = document.getElementById("search_job").value;
-      const SERVER_IP = SERVER_URL;  // use same-origin server
-
-      // Show searching state
-      const home_screen = document.getElementById('home_screen');
-      const searchingHtml = `
-        <div style="padding:20px; color:#111827;">
-          <h3>Searching...</h3>
-          <p>Connecting to ${SERVER_IP}</p>
-        </div>`;
-      home_screen.innerHTML = searchingHtml;
 
       try
       {
-        console.log('Attempting to connect to:', SERVER_IP);
-        const res = await fetch(SERVER_IP, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ job_search: job_search, cmd: 'search_jobs' })
-        });
-
-        const responseJson = await res.json();
-        console.log('Search response:', responseJson);
-
-        // Accept a couple of possible shapes to be robust
-        const listings = (responseJson && responseJson.data && responseJson.data.listings_to_return) || responseJson.listings_to_return || [];
-
-        if (Array.isArray(listings) && listings.length > 0)
-        {
-          listings_to_display = listings;
-        } else
-        {
-          listings_to_display = [];
-        }
+        const listings = await smartSearch(job_search);
+        listings_to_display = listings;
         draw_home_screen();
-
       } catch (err)
       {
         console.error('Failed to fetch search results:', err);
-        const errorMessage = `
-          <div style="padding:20px; color:#111827;">
-            <h3>Unable to connect to server</h3>
-            <p>Could not connect to ${SERVER_IP}</p>
-            <p>Make sure:</p>
-            <ul style="margin-left: 20px;">
-              <li>The server is running (node server.js)</li>
-              <li>You can access ${SERVER_IP} from this computer</li>
-              <li>No firewall is blocking the connection</li>
-              <li>The IP address is correct (currently using ${SERVER_IP})</li>
-            </ul>
-            <p style="margin-top:16px">Server error: ${err.message || 'Unknown error'}</p>
-          </div>`;
-        home_screen.innerHTML = errorMessage;
+        listings_to_display = [];
+        draw_home_screen();
       }
     }
 
@@ -481,6 +520,20 @@
       localStorage.removeItem('userPassword');
       window.location.href = 'login.html';
     }
+
+    function applySearch()
+    {
+      search();
+    }
+
+    function onFilterChange()
+    {
+      filter_age_min = Number(document.getElementById('filter_age_min').value) || 0;
+      filter_age_max = Number(document.getElementById('filter_age_max').value) || 120;
+      filter_location = document.getElementById('filter_location').value || '';
+      search();
+    }
+
     async function get_first_letter()
     {
       const SERVER_IP = SERVER_URL;
@@ -593,7 +646,13 @@
           listings +=
             `<div class="listing-card" style="position: relative; background: white; border-radius: 12px; padding: 16px; margin: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
               <div style="margin-bottom: 16px;">
-                <h3 style="font-size: 1.2rem; color: #333; margin-bottom: 8px;">${item.listing_title || ''}</h3>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                  <h3 style="font-size: 1.2rem; color: #333; margin: 0; flex: 1;">${item.listing_title || ''}</h3>
+                  <button onclick="toggleSaveListing('${item.id}')" data-listing-id="${item.id}" data-save-btn
+                          style="background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 4px; color: ${saved_listing_ids.includes(item.id) ? '#e53e3e' : '#999'}; transition: color 0.2s;">
+                    ❤️
+                  </button>
+                </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                   <button onclick="startChat('${item.ownerEmail}')" 
                           style="background: #4b6cff; color: white; border: none; border-radius: 8px; padding: 8px 16px; 
@@ -632,6 +691,7 @@
           <div class="corner profile" id="profileBtn" title="Profile">P</div>
           <div id="profileMenu" style="display:none; position:absolute; top:72px; right:10px; background:#fff; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:8px; z-index:60; min-width:170px;">
             <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; border-radius:6px;" onclick="viewMyListings()">View My Listings</button>
+            <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; border-radius:6px;" onclick="viewSavedListings()">Saved Listings</button>
             <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; border-radius:6px;" onclick="goToSettings()">Settings</button>
             <hr style="margin:8px 0; border:none; border-top:1px solid #eee;" />
             <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; color:#c53030; border-radius:6px;" onclick="logout()">Log out</button>

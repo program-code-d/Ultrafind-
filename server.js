@@ -729,6 +729,77 @@ function handleRequest(req, res) {
     }
 
     // Delete a listing owned by the authenticated user
+    if (cmd === "save_listing") {
+      const idx = findUserIndex(parsed.email, parsed.password);
+      if (idx === -1) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid credentials" }));
+        return;
+      }
+      const listingId = parsed.listing_id;
+      if (!listingId) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing listing_id" }));
+        return;
+      }
+      if (!users[idx].saved_listings) users[idx].saved_listings = [];
+      if (!users[idx].saved_listings.includes(listingId)) {
+        users[idx].saved_listings.push(listingId);
+        saveUsers();
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true }));
+      return;
+    }
+
+    if (cmd === "unsave_listing") {
+      const idx = findUserIndex(parsed.email, parsed.password);
+      if (idx === -1) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid credentials" }));
+        return;
+      }
+      const listingId = parsed.listing_id;
+      if (!listingId) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing listing_id" }));
+        return;
+      }
+      if (!users[idx].saved_listings) users[idx].saved_listings = [];
+      const pos = users[idx].saved_listings.indexOf(listingId);
+      if (pos !== -1) {
+        users[idx].saved_listings.splice(pos, 1);
+        saveUsers();
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true }));
+      return;
+    }
+
+    if (cmd === "get_saved_listings") {
+      const idx = findUserIndex(parsed.email, parsed.password);
+      if (idx === -1) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid credentials" }));
+        return;
+      }
+      const saved = users[idx].saved_listings || [];
+      // Get all listings from all users that match saved IDs
+      const allListings = [];
+      for (let u of users) {
+        if (u.listings && Array.isArray(u.listings)) {
+          for (let l of u.listings) {
+            if (saved.includes(l.id)) {
+              allListings.push({ ...l, ownerEmail: u.email });
+            }
+          }
+        }
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, listings: allListings }));
+      return;
+    }
+
     if (cmd === "delete_listing") {
       const idx = findUserIndex(parsed.email, parsed.password);
       if (idx === -1) {
