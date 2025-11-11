@@ -167,6 +167,7 @@
     <div id="signup_screen"></div>
 
     <script>
+        const SERVER_URL = '/';
         const cities = [
             "Virginia Beach, VA, USA", "Oakland, CA, USA", "Minneapolis, MN, USA", "Tulsa, OK, USA", "Arlington, TX, USA",
             "New Orleans, LA, USA", "Wichita, KS, USA", "Cleveland, OH, USA", "Tampa, FL, USA", "Aurora, CO, USA",
@@ -266,52 +267,60 @@
             const first_name = document.getElementById("first_name").value;
             const last_name = document.getElementById("last_name").value;
             const location = document.getElementById("cityInput").value;
-            const SERVER_IP = "https://ultrafind.onrender.com";
+            const SERVER_IP = SERVER_URL;
 
             // Validate required fields
-            if (!email || !first_name || !last_name || !location || !p) {
+            if (!email || !first_name || !last_name || !location || !p)
+            {
                 alert("Please fill in all fields");
                 return;
             }
 
             console.log('Attempting signup for:', email);
-            
-            fetch(SERVER_IP + '/', {
+
+            fetch(SERVER_IP, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ 
-                    email, 
-                    first_name, 
-                    last_name, 
-                    location, 
-                    password: p, 
-                    cmd: 'sign_up' 
+                body: JSON.stringify({
+                    email,
+                    first_name,
+                    last_name,
+                    location,
+                    password: p,
+                    cmd: 'sign_up'
                 })
             })
-            .then(res => {
-                if (!res.ok) {
-                    console.error('Server response not OK:', res.status);
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
-                return res.json();
-            })
-            .then(payload => {
-                console.log('Server response:', payload);
-                if (payload?.signed_up === 1 || payload?.data?.signed_up === 1) {
-                    localStorage.setItem('userEmail', email);
-                    localStorage.setItem('userPassword', p);
-                    window.location.href = 'index.html';
-                } else {
-                    throw new Error('Signup failed - server returned unsuccessful response');
-                }
-            })
-            .catch(error => {
-                console.error('Signup error:', error);
-                alert('Signup failed: ' + (error.message || 'Network error. Please check your connection and try again.'));
-            });
+                .then(async (res) =>
+                {
+                    const body = await res.json().catch(() => ({}));
+                    if (!res.ok)
+                    {
+                        const msg = body && (body.message || body.error) ? (body.message || body.error) : `HTTP ${res.status}`;
+                        throw new Error(msg);
+                    }
+                    return body;
+                })
+                .then(payload =>
+                {
+                    console.log('Server response:', payload);
+                    if (payload?.signed_up === 1 || payload?.data?.signed_up === 1)
+                    {
+                        localStorage.setItem('userEmail', email);
+                        localStorage.setItem('userPassword', p);
+                        window.location.href = 'index.html';
+                    } else
+                    {
+                        throw new Error('Signup failed - server returned unsuccessful response');
+                    }
+                })
+                .catch(error =>
+                {
+                    console.error('Signup error:', error);
+                    alert('Signup failed: ' + (error.message || 'Network error. Please check your connection and try again.'));
+                });
         }
 
         function switch_to_sign_up()
@@ -326,9 +335,9 @@
         {
             const email = document.getElementById("email_signin").value;
             const password = document.getElementById("password_signin").value;
-            const SERVER_IP = "https://ultrafind.onrender.com";
+            const SERVER_IP = SERVER_URL;
 
-            fetch(SERVER_IP + '/', {
+            fetch(SERVER_IP, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: email, password, cmd: 'login' })

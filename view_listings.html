@@ -76,7 +76,58 @@
                     data.listings.forEach(l =>
                     {
                         const card = document.createElement('div'); card.className = 'card';
-                        card.innerHTML = `<h3>${l.listing_title || ''}</h3><p>${(l.description || '')}</p>`;
+
+                        // Image HTML
+                        let imagesHtml = '';
+                        if (Array.isArray(l.pic) && l.pic.length)
+                        {
+                            imagesHtml = '<div style="display:flex; gap:8px; overflow:auto; margin-bottom:8px;">';
+                            l.pic.forEach(src =>
+                            {
+                                const safeSrc = src.startsWith('/') ? src : ('/' + src);
+                                imagesHtml += `<img src="${safeSrc}" style="width:140px; height:100px; object-fit:cover; border-radius:8px;" onerror="this.src='https://via.placeholder.com/140x100?text=No+Image'"/>`;
+                            });
+                            imagesHtml += '</div>';
+                        } else
+                        {
+                            imagesHtml = `<div style="width:100%; height:120px; background:#f5f5f5; display:flex; align-items:center; justify-content:center; color:#999; border-radius:8px; margin-bottom:8px;">No images</div>`;
+                        }
+
+                        // Pay info
+                        let payHtml = '';
+                        if (l.payinfo && (l.payinfo.amount || l.payinfo.amount === 0))
+                        {
+                            const amt = Number((l.payinfo.amount || 0));
+                            const per = l.payinfo.is_per_hour ? '/hr' : '';
+                            payHtml = `<div style="font-weight:700; color:#fff; background:#4b6cff; display:inline-block; padding:6px 10px; border-radius:8px;">$${amt.toFixed(2)}${per}</div>`;
+                        }
+
+                        // Created date
+                        let dateStr = '';
+                        if (l.created_at)
+                        {
+                            try { dateStr = new Date(Number(l.created_at)).toLocaleString(); } catch (e) { dateStr = '' }
+                        } else if (l.date)
+                        {
+                            dateStr = l.date;
+                        }
+
+                        const idAttr = l.id ? `data-id="${l.id}"` : '';
+
+                        card.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                              <h3 style="margin:0; font-size:1.1rem">${l.listing_title || ''}</h3>
+                              <div>${payHtml}</div>
+                            </div>
+                            ${imagesHtml}
+                            <p style="color:#444;">${(l.description || '')}</p>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                              <div style="color:#666; font-size:0.9rem">${l.city ? l.city + ' • ' : ''}${dateStr ? dateStr : ''}</div>
+                              <div>
+                                ${l.id ? `<button style="background:#ef4444; color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer;" onclick="deleteListing('${l.id}')">Delete</button>` : ''}
+                              </div>
+                            </div>
+                        `;
                         el.appendChild(card);
                     });
                 } else
@@ -87,6 +138,29 @@
             {
                 document.getElementById('listings').innerHTML = '<div style="color:#c53030">Failed to load listings</div>';
                 console.error(e);
+            }
+        }
+
+        async function deleteListing(id)
+        {
+            if (!confirm('Delete this listing?')) return;
+            try
+            {
+                const res = await fetch(SERVER_URL, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cmd: 'delete_listing', listing_id: id, email: email, password: password })
+                });
+                const data = await res.json();
+                if (data && data.success)
+                {
+                    await loadListings();
+                } else
+                {
+                    alert('Failed to delete listing');
+                }
+            } catch (e)
+            {
+                console.error(e); alert('Request failed');
             }
         }
         function goHome() { localStorage.setItem('userEmail', email); localStorage.setItem('userPassword', password); window.location.href = 'index.html'; }

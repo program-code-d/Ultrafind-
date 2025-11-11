@@ -410,6 +410,20 @@ function handleRequest(req, res) {
         return;
       }
 
+      // Validate password strength BEFORE creating the account
+      if (!isStrongPassword(parsed.password)) {
+        console.error("Sign up failed - weak password for:", parsed.email);
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: "Weak password",
+            message:
+              "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.",
+          })
+        );
+        return;
+      }
+
       // Check if email already exists
       if (users.some((u) => u.email === parsed.email)) {
         console.error("Sign up failed - email already exists:", parsed.email);
@@ -435,19 +449,6 @@ function handleRequest(req, res) {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ data: { signed_up: 1 } }));
       } catch (error) {
-        // Validate password strength
-        if (!isStrongPassword(parsed.password)) {
-          console.error("Sign up failed - weak password for:", parsed.email);
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({
-              error: "Weak password",
-              message:
-                "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.",
-            })
-          );
-          return;
-        }
         console.error("Sign up failed - error creating account:", error);
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
@@ -481,6 +482,18 @@ function handleRequest(req, res) {
         res.end(JSON.stringify({ success: false }));
         return;
       }
+      // Validate new password strength
+      if (!parsed.new_password || !isStrongPassword(parsed.new_password)) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            success: false,
+            error: "New password does not meet strength requirements",
+          })
+        );
+        return;
+      }
+
       users[idx].password = hashPassword(parsed.new_password + users[idx].salt);
       saveUsers();
       res.writeHead(200);
@@ -670,6 +683,8 @@ function handleRequest(req, res) {
         date: parsed.date,
         payinfo: parsed.payinfo,
         ownerEmail: parsed.email,
+        id: crypto.randomBytes(8).toString("hex"),
+        created_at: Date.now(),
       });
 
       saveUsers();
@@ -710,6 +725,47 @@ function handleRequest(req, res) {
       const myListings = users[idx].listings || [];
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: true, listings: myListings }));
+      return;
+    }
+
+    // Delete a listing owned by the authenticated user
+    if (cmd === "delete_listing") {
+      const idx = findUserIndex(parsed.email, parsed.password);
+      if (idx === -1) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid credentials" }));
+        return;
+      }
+      const listingId = parsed.listing_id;
+      if (!listingId) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing listing_id" }));
+        return;
+      }
+      const userListings = users[idx].listings || [];
+      const pos = userListings.findIndex((l) => l.id === listingId);
+      if (pos === -1) {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Listing not found" }));
+        return;
+      }
+      // Optionally delete uploaded images from disk
+      const toRemove = userListings[pos];
+      if (Array.isArray(toRemove.pic)) {
+        toRemove.pic.forEach((p) => {
+          try {
+            const pth = path.join(__dirname, p);
+            if (fs.existsSync(pth)) fs.unlinkSync(pth);
+          } catch (e) {
+            // ignore file removal errors
+          }
+        });
+      }
+      userListings.splice(pos, 1);
+      users[idx].listings = userListings;
+      saveUsers();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true }));
       return;
     }
 
