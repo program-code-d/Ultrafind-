@@ -206,35 +206,6 @@
       background: linear-gradient(90deg, #2ecc71 80%, #4b6cff 100%);
     }
 
-    .filters {
-      display: flex;
-      gap: 12px;
-      padding: 12px 16px;
-      background: #fff;
-      border-bottom: 1px solid #eee;
-      flex-wrap: wrap;
-    }
-
-    .filter-group {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      font-size: 0.9rem;
-    }
-
-    .filter-group label {
-      font-weight: 600;
-      color: #333;
-    }
-
-    .filter-group input,
-    .filter-group select {
-      padding: 6px 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 0.85rem;
-    }
-
     @media (max-width: 520px) {
       #search_btn {
         height: 38px;
@@ -251,31 +222,6 @@
   <script>
     var email;
     var password;
-    // Use same-origin server URL for API calls
-    const SERVER_URL = '/';
-    let listings_to_display = [];
-    let filter_age_min = 0, filter_age_max = 120, filter_location = '';
-    let saved_listing_ids = [];
-
-    // Helper: robust image source resolver
-    function getImageSrc(p)
-    {
-      if (!p) return '';
-      // If already a full URL
-      if (p.startsWith('http://') || p.startsWith('https://')) return p;
-      // If starts with slash, assume relative path
-      if (p.startsWith('/')) return p;
-      // If Windows path, take basename
-      try
-      {
-        const parts = p.replace(/\\/g, '/').split('/');
-        const name = parts[parts.length - 1];
-        return '/uploads/' + name;
-      } catch (e)
-      {
-        return '/' + p;
-      }
-    }
 
     // Function to start a chat with a listing owner
     function startChat(ownerEmail)
@@ -287,72 +233,13 @@
         return;
       }
       // Open chat.html with the recipient's email
-
+      
       localStorage.setItem('userEmail', email);
       localStorage.setItem('userPassword', password)
       localStorage.setItem('chatWithUser', ownerEmail)
-      window.location.href = `chat.html`
+      window.location.href=`chat.html`
       //window.open(`chat.html?recipient=${encodeURIComponent(ownerEmail)}`, '_blank');
     }
-
-    async function toggleSaveListing(listingId)
-    {
-      if (!email || !password) return;
-      const isSaved = saved_listing_ids.includes(listingId);
-      const cmd = isSaved ? 'unsave_listing' : 'save_listing';
-      try
-      {
-        const res = await fetch(SERVER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cmd: cmd, email: email, password: password, listing_id: listingId })
-        });
-        const data = await res.json();
-        if (data.success)
-        {
-          if (isSaved)
-          {
-            saved_listing_ids = saved_listing_ids.filter(id => id !== listingId);
-          } else
-          {
-            saved_listing_ids.push(listingId);
-          }
-          // Update button appearance
-          const btn = document.querySelector(`[data-listing-id="${listingId}"][data-save-btn]`);
-          if (btn)
-          {
-            btn.style.color = saved_listing_ids.includes(listingId) ? '#e53e3e' : '#999';
-          }
-        }
-      } catch (e)
-      {
-        console.error('Error saving listing:', e);
-      }
-    }
-
-    async function viewSavedListings()
-    {
-      if (!email || !password) return;
-      try
-      {
-        const res = await fetch(SERVER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cmd: 'get_saved_listings', email: email, password: password })
-        });
-        const data = await res.json();
-        if (data.success && data.listings)
-        {
-          listings_to_display = data.listings;
-          document.getElementById("search_job").value = "Saved Listings";
-          draw_home_screen();
-        }
-      } catch (e)
-      {
-        console.error('Error loading saved listings:', e);
-      }
-    }
-
     function main()
     {
 
@@ -374,137 +261,67 @@
       // Clear credentials from localStorage after use
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userPassword');
-
-      // Load saved listings from server
-      (async function loadSavedListings()
-      {
-        try
-        {
-          const res = await fetch(SERVER_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cmd: 'get_saved_listings', email: email, password: password })
-          });
-          const data = await res.json();
-          if (data.success && data.listings)
-          {
-            saved_listing_ids = data.listings.map(l => l.id);
-          }
-        } catch (e)
-        {
-          console.log('Could not load saved listings');
-        }
-      })();
-
-      // Load default listings on first load
-      loadAllListings();
-    }
-
+      draw_home_screen();
+    } var listings_to_display = [];
     async function search()
     {
       const job_search = document.getElementById("search_job").value;
+      const SERVER_IP = "https://ultrafind.onrender.com/";  // Your server's IP address
+
+      // Show searching state
+      const home_screen = document.getElementById('home_screen');
+      const searchingHtml = `
+        <div style="padding:20px; color:#111827;">
+          <h3>Searching...</h3>
+          <p>Connecting to ${SERVER_IP}</p>
+        </div>`;
+      home_screen.innerHTML = searchingHtml;
 
       try
       {
-        const listings = await smartSearch(job_search);
-        listings_to_display = listings;
+        console.log('Attempting to connect to:', SERVER_IP);
+        const res = await fetch(SERVER_IP + '/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ job_search: job_search, cmd: 'search_jobs' })
+        });
+
+        const responseJson = await res.json();
+        console.log('Search response:', responseJson);
+
+        // Accept a couple of possible shapes to be robust
+        const listings = (responseJson && responseJson.data && responseJson.data.listings_to_return) || responseJson.listings_to_return || [];
+
+        if (Array.isArray(listings) && listings.length > 0)
+        {
+          listings_to_display = listings;
+        } else
+        {
+          listings_to_display = [];
+        }
         draw_home_screen();
+
       } catch (err)
       {
         console.error('Failed to fetch search results:', err);
-        listings_to_display = [];
-        draw_home_screen();
+        const errorMessage = `
+          <div style="padding:20px; color:#111827;">
+            <h3>Unable to connect to server</h3>
+            <p>Could not connect to ${SERVER_IP}</p>
+            <p>Make sure:</p>
+            <ul style="margin-left: 20px;">
+              <li>The server is running (node server.js)</li>
+              <li>You can access ${SERVER_IP} from this computer</li>
+              <li>No firewall is blocking the connection</li>
+              <li>The IP address is correct (currently using ${SERVER_IP})</li>
+            </ul>
+            <p style="margin-top:16px">Server error: ${err.message || 'Unknown error'}</p>
+          </div>`;
+        home_screen.innerHTML = errorMessage;
       }
     }
-
-    // Smarter search with partial word matching
-    async function smartSearch(query)
-    {
-      const SERVER_IP = SERVER_URL;
-      try
-      {
-        const res = await fetch(SERVER_IP, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ job_search: query, cmd: 'search_jobs' })
-        });
-        const responseJson = await res.json();
-        let listings = (responseJson && responseJson.data && responseJson.data.listings_to_return) || responseJson.listings_to_return || [];
-
-        // Further filter by search query with partial/fuzzy matching
-        if (query.trim())
-        {
-          const q = query.toLowerCase();
-          listings = listings.filter(l =>
-          {
-            const title = (l.listing_title || '').toLowerCase();
-            const desc = (l.description || '').toLowerCase();
-            // Match if any word in query appears anywhere in title or description
-            const qWords = q.split(/\s+/);
-            return qWords.some(w => title.includes(w) || desc.includes(w));
-          });
-        }
-
-        // Apply filters
-        listings = listings.filter(l =>
-        {
-          const age = Number(l.age) || 0;
-          if (age > 0 && (age < filter_age_min || age > filter_age_max)) return false;
-          if (filter_location && !(l.city || '').toLowerCase().includes(filter_location.toLowerCase())) return false;
-          return true;
-        });
-
-        return listings;
-      } catch (e)
-      {
-        console.error(e);
-        return [];
-      }
-    }
-
-    // Load all listings (default view on first load)
-    async function loadAllListings()
-    {
-      const SERVER_IP = SERVER_URL;
-      try
-      {
-        const res = await fetch(SERVER_IP, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ job_search: '', cmd: 'search_jobs' })
-        });
-        const responseJson = await res.json();
-        let listings = (responseJson && responseJson.data && responseJson.data.listings_to_return) || responseJson.listings_to_return || [];
-
-        // Apply filters
-        listings = listings.filter(l =>
-        {
-          const age = Number(l.age) || 0;
-          if (age > 0 && (age < filter_age_min || age > filter_age_max)) return false;
-          if (filter_location && !(l.city || '').toLowerCase().includes(filter_location.toLowerCase())) return false;
-          return true;
-        });
-
-        listings_to_display = listings;
-        draw_home_screen();
-      } catch (e)
-      {
-        console.error(e);
-      }
-    }
-
-    function onFilterChange()
-    {
-      const ageMin = document.getElementById("filter_age_min")?.value || 0;
-      const ageMax = document.getElementById("filter_age_max")?.value || 120;
-      const loc = document.getElementById("filter_location")?.value || '';
-      filter_age_min = Number(ageMin);
-      filter_age_max = Number(ageMax);
-      filter_location = loc;
-      // Re-search with new filters
-      search();
-    }
-
     function new_listing()
     {
       localStorage.setItem('userEmail', email);
@@ -519,126 +336,12 @@
       window.location.href = 'settings.html';
 
     }
-    function goToSettings()
-    {
-      localStorage.setItem('userEmail', email);
-      localStorage.setItem('userPassword', password);
-      window.location.href = 'settings.html';
-    }
-
-    function viewMyListings()
-    {
-      localStorage.setItem('userEmail', email);
-      localStorage.setItem('userPassword', password);
-      window.location.href = 'view_listings.html';
-    }
-
-    function logout()
-    {
-      // clear any stored credentials and go to login
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userPassword');
-      window.location.href = 'login.html';
-    }
-
-    function applySearch()
-    {
-      search();
-    }
-
-    function onFilterChange()
-    {
-      filter_age_min = Number(document.getElementById('filter_age_min').value) || 0;
-      filter_age_max = Number(document.getElementById('filter_age_max').value) || 120;
-      filter_location = document.getElementById('filter_location').value || '';
-      search();
-    }
-
-    // Filters popover controls and location autocomplete
-    let _citiesCache = null;
-    function toggleFilters()
-    {
-      const pop = document.getElementById('filtersPopover');
-      if (!pop) return;
-      pop.style.display = pop.style.display === 'none' ? 'block' : 'none';
-    }
-
-    async function onLocationInput()
-    {
-      const input = document.getElementById('filter_location');
-      const suggestions = document.getElementById('locSuggestions');
-      if (!input || !suggestions) return;
-      const q = input.value.trim();
-      if (!q)
-      {
-        suggestions.style.display = 'none';
-        suggestions.innerHTML = '';
-        return;
-      }
-
-      try
-      {
-        if (!_citiesCache)
-        {
-          const res = await fetch(SERVER_URL, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cmd: 'get_cities' })
-          });
-          const data = await res.json();
-          _citiesCache = (data && data.cities) || [];
-        }
-
-        const ql = q.toLowerCase();
-        const matches = _citiesCache.filter(c => c.toLowerCase().includes(ql)).slice(0, 10);
-        if (matches.length === 0)
-        {
-          suggestions.style.display = 'none';
-          suggestions.innerHTML = '';
-          return;
-        }
-
-        suggestions.style.display = 'block';
-        suggestions.innerHTML = matches.map(m => `<div class="loc-sugg" style="padding:8px; cursor:pointer; border-bottom:1px solid #f3f4f6;">${m}</div>`).join('');
-        // attach click handlers
-        Array.from(suggestions.querySelectorAll('.loc-sugg')).forEach((el) =>
-        {
-          el.onclick = () => { input.value = el.textContent; suggestions.style.display = 'none'; onFilterChange(); };
-        });
-
-      } catch (e)
-      {
-        console.error('Failed to load city suggestions', e);
-        suggestions.style.display = 'none';
-      }
-    }
-
-    function clearFilters()
-    {
-      const a = document.getElementById('filter_age_min');
-      const b = document.getElementById('filter_age_max');
-      const l = document.getElementById('filter_location');
-      if (a) a.value = 0;
-      if (b) b.value = 120;
-      if (l) l.value = '';
-      const suggestions = document.getElementById('locSuggestions');
-      if (suggestions) { suggestions.style.display = 'none'; suggestions.innerHTML = ''; }
-      filter_age_min = 0; filter_age_max = 120; filter_location = '';
-      search();
-    }
-
-    function applyFiltersAndClose()
-    {
-      onFilterChange();
-      const pop = document.getElementById('filtersPopover');
-      if (pop) pop.style.display = 'none';
-    }
-
     async function get_first_letter()
     {
-      const SERVER_IP = SERVER_URL;
+      const SERVER_IP = "https://ultrafind.onrender.com/";
       try
       {
-        const res = await fetch(SERVER_IP, {
+        const res = await fetch(SERVER_IP + '/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -699,8 +402,7 @@
           // Add each image
           for (var k = 0; k < item.pic.length; k++)
           {
-            // Resolve image path robustly
-            const imgUrl = getImageSrc(item.pic[k]);
+            const imgUrl = `https://ultrafind.onrender.com/${item.pic[k]}`;
             images += `
               <div style="
                 position: relative;
@@ -709,10 +411,10 @@
                 overflow: hidden;
                 background: #f5f5f5;
               ">
-                <img
-                  src="${imgUrl}"
+                <img 
+                  src="${imgUrl}" 
                   alt="Listing photo ${k + 1}"
-                  onerror="(function(img){ try{ const parts=img.src.split('/'); const name=parts[parts.length-1]; img.onerror=null; img.src='/uploads/'+name; }catch(e){ img.src='https://via.placeholder.com/150?text=Image+Error'; } })(this)"
+                  onerror="this.src='https://via.placeholder.com/150?text=Image+Error'"
                   style="
                     position: absolute;
                     top: 0;
@@ -745,15 +447,7 @@
           listings +=
             `<div class="listing-card" style="position: relative; background: white; border-radius: 12px; padding: 16px; margin: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
               <div style="margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                  <h3 style="font-size: 1.2rem; color: #333; margin: 0; flex: 1;">${item.listing_title || ''}</h3>
-                  <button onclick="toggleSaveListing('${item.id}')" data-listing-id="${item.id}" data-save-btn
-                          style="background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 4px; color: ${saved_listing_ids.includes(item.id) ? '#e53e3e' : '#999'}; transition: color 0.2s;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6 2C5.44772 2 5 2.44772 5 3V20.382C5 21.1183 5.85786 21.5339 6.46275 21.0107L12 16.618L17.5372 21.0107C18.1421 21.5339 19 21.1183 19 20.382V3C19 2.44772 18.5523 2 18 2H6Z" />
-                    </svg>
-                  </button>
-                </div>
+                <h3 style="font-size: 1.2rem; color: #333; margin-bottom: 8px;">${item.listing_title || ''}</h3>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                   <button onclick="startChat('${item.ownerEmail}')" 
                           style="background: #4b6cff; color: white; border: none; border-radius: 8px; padding: 8px 16px; 
@@ -789,86 +483,24 @@
       home_screen.innerHTML = `
         <div class="top-decor">
           <div onclick="new_listing()" class="corner plus" title="Add"></div>
-          <div class="corner profile" id="profileBtn" title="Profile">P</div>
-          <div id="profileMenu" style="display:none; position:absolute; top:72px; right:10px; background:#fff; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:8px; z-index:60; min-width:170px;">
-            <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; border-radius:6px;" onclick="viewMyListings()">View My Listings</button>
-            <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; border-radius:6px;" onclick="viewSavedListings()">Saved Listings</button>
-            <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; border-radius:6px;" onclick="goToSettings()">Settings</button>
-            <hr style="margin:8px 0; border:none; border-top:1px solid #eee;" />
-            <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; color:#c53030; border-radius:6px;" onclick="logout()">Log out</button>
-          </div>
+          <div onclick="settings()" class="corner profile" title="Profile">P</div>
           <div class="top-home" onclick="homeClick(this)">Home</div>
           <div class="brand">
             <h1>UltraFind+</h1>
             <p>Opportunity Search</p>
             <div class="underline">
               <input class="search-input" id="search_job" type="search" placeholder="Search jobs or listings..." />
-              <button onclick="applySearch()"id="search_btn" style="margin-left:8px; height:42px; min-width:48px; border:none; border-radius:10px; background:linear-gradient(90deg, #4b6cff 80%, #2ecc71 100%); color:#fff; font-size:1.5rem; font-weight:700; box-shadow:0 2px 8px rgba(75,108,255,0.10); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.2s;">
+              <button onclick="search()"id="search_btn" style="margin-left:8px; height:42px; min-width:48px; border:none; border-radius:10px; background:linear-gradient(90deg, #4b6cff 80%, #2ecc71 100%); color:#fff; font-size:1.5rem; font-weight:700; box-shadow:0 2px 8px rgba(75,108,255,0.10); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.2s;">
                 🔍
               </button>
             </div>
           </div>
           
         </div>
-        <div style="position:relative;">
-          <button id="filtersBtn" onclick="toggleFilters()" style="background:#fff;border:1px solid #e6e9ef;padding:8px 12px;border-radius:10px;cursor:pointer;font-size:0.95rem;">Filters ▾</button>
-          <div id="filtersPopover" style="display:none; position:absolute; top:42px; left:0; background:#fff; border:1px solid #eee; box-shadow:0 8px 20px rgba(0,0,0,0.08); padding:12px; border-radius:10px; z-index:70; min-width:260px;">
-            <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-              <label style="font-size:0.9rem; color:#333; min-width:40px;">Age</label>
-              <input type="number" id="filter_age_min" min="0" max="120" value="0" style="width:70px; padding:6px;" onchange="onFilterChange()"> -
-              <input type="number" id="filter_age_max" min="0" max="120" value="120" style="width:70px; padding:6px;" onchange="onFilterChange()">
-            </div>
-            <div style="margin-bottom:8px;">
-              <label style="font-size:0.9rem; color:#333;">Location</label>
-              <input type="text" id="filter_location" placeholder="Start typing city..." style="width:100%; padding:8px; margin-top:6px;" oninput="onLocationInput()" onchange="onFilterChange()">
-              <div id="locSuggestions" style="display:none; max-height:120px; overflow:auto; border:1px solid #eee; margin-top:6px; border-radius:6px;"></div>
-            </div>
-            <div style="display:flex; gap:8px; justify-content:flex-end;">
-              <button onclick="clearFilters()" style="background:#f3f4f6;border:none;padding:8px 12px;border-radius:8px;">Clear</button>
-              <button onclick="applyFiltersAndClose()" style="background:linear-gradient(90deg,#4b6cff,#2ecc71); color:#fff; border:none; padding:8px 12px; border-radius:8px;">Apply</button>
-            </div>
-          </div>
-        </div>
         ${listings}
 
 
-      `;
-
-      // Populate profile initial from server and wire menu actions
-      (async function setProfileInitial()
-      {
-        try
-        {
-          const res = await fetch(SERVER_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cmd: 'get_profile', email: email, password: password })
-          });
-          const data = await res.json();
-          const el = document.querySelector('.corner.profile');
-          if (data && data.success && data.profile && data.profile.first_name)
-          {
-            el.textContent = (data.profile.first_name[0] || 'U').toUpperCase();
-          } else
-          {
-            el.textContent = (email && email[0]) ? email[0].toUpperCase() : 'U';
-          }
-        } catch (e)
-        {
-          const el = document.querySelector('.corner.profile');
-          el.textContent = (email && email[0]) ? email[0].toUpperCase() : 'U';
-        }
-
-        // wire up profile button toggle and menu actions
-        const btn = document.getElementById('profileBtn');
-        const menu = document.getElementById('profileMenu');
-        if (btn && menu)
-        {
-          btn.onclick = (ev) => { ev.stopPropagation(); menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; };
-          // close when clicking outside
-          document.addEventListener('click', (e) => { if (!btn.contains(e.target) && !menu.contains(e.target)) menu.style.display = 'none'; });
-        }
-      })();
+      `; document.querySelector('.corner.profile').textContent = 'A'; // Change to any le
 
       const underline = home_screen.querySelector('.underline');
       const input = underline.querySelector('.search-input');
@@ -898,7 +530,6 @@
       el.classList.add('clicked');
       setTimeout(() => el.classList.remove('clicked'), 300);
     }
-
   </script>
 </body>
 
