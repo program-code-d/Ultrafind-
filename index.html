@@ -206,6 +206,35 @@
       background: linear-gradient(90deg, #2ecc71 80%, #4b6cff 100%);
     }
 
+    .filters {
+      display: flex;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #fff;
+      border-bottom: 1px solid #eee;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+
+    .filter-group label {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
     @media (max-width: 520px) {
       #search_btn {
         height: 38px;
@@ -224,6 +253,8 @@
     var password;
     // Use same-origin server URL for API calls
     const SERVER_URL = '/';
+    let listings_to_display = [];
+    let filter_age_min = 0, filter_age_max = 120, filter_location = '';
 
     // Function to start a chat with a listing owner
     function startChat(ownerEmail)
@@ -263,8 +294,10 @@
       // Clear credentials from localStorage after use
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userPassword');
-      draw_home_screen();
-    } var listings_to_display = [];
+      // Load default listings on first load
+      loadAllListings();
+    }
+
     async function search()
     {
       const job_search = document.getElementById("search_job").value;
@@ -324,6 +357,95 @@
         home_screen.innerHTML = errorMessage;
       }
     }
+
+    // Smarter search with partial word matching
+    async function smartSearch(query)
+    {
+      const SERVER_IP = SERVER_URL;
+      try
+      {
+        const res = await fetch(SERVER_IP, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_search: query, cmd: 'search_jobs' })
+        });
+        const responseJson = await res.json();
+        let listings = (responseJson && responseJson.data && responseJson.data.listings_to_return) || responseJson.listings_to_return || [];
+
+        // Further filter by search query with partial/fuzzy matching
+        if (query.trim())
+        {
+          const q = query.toLowerCase();
+          listings = listings.filter(l =>
+          {
+            const title = (l.listing_title || '').toLowerCase();
+            const desc = (l.description || '').toLowerCase();
+            // Match if any word in query appears anywhere in title or description
+            const qWords = q.split(/\s+/);
+            return qWords.some(w => title.includes(w) || desc.includes(w));
+          });
+        }
+
+        // Apply filters
+        listings = listings.filter(l =>
+        {
+          const age = Number(l.age) || 0;
+          if (age > 0 && (age < filter_age_min || age > filter_age_max)) return false;
+          if (filter_location && !(l.city || '').toLowerCase().includes(filter_location.toLowerCase())) return false;
+          return true;
+        });
+
+        return listings;
+      } catch (e)
+      {
+        console.error(e);
+        return [];
+      }
+    }
+
+    // Load all listings (default view on first load)
+    async function loadAllListings()
+    {
+      const SERVER_IP = SERVER_URL;
+      try
+      {
+        const res = await fetch(SERVER_IP, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_search: '', cmd: 'search_jobs' })
+        });
+        const responseJson = await res.json();
+        let listings = (responseJson && responseJson.data && responseJson.data.listings_to_return) || responseJson.listings_to_return || [];
+
+        // Apply filters
+        listings = listings.filter(l =>
+        {
+          const age = Number(l.age) || 0;
+          if (age > 0 && (age < filter_age_min || age > filter_age_max)) return false;
+          if (filter_location && !(l.city || '').toLowerCase().includes(filter_location.toLowerCase())) return false;
+          return true;
+        });
+
+        listings_to_display = listings;
+        draw_home_screen();
+      } catch (e)
+      {
+        console.error(e);
+      }
+    }
+
+    function onFilterChange()
+    {
+      const ageMin = document.getElementById("filter_age_min")?.value || 0;
+      const ageMax = document.getElementById("filter_age_max")?.value || 120;
+      const loc = document.getElementById("filter_location")?.value || '';
+      filter_age_min = Number(ageMin);
+      filter_age_max = Number(ageMax);
+      filter_location = loc;
+      // Re-search with new filters
+      search();
+    }
+
     function new_listing()
     {
       localStorage.setItem('userEmail', email);
@@ -425,7 +547,8 @@
           // Add each image
           for (var k = 0; k < item.pic.length; k++)
           {
-            const imgUrl = `http://192.168.50.134:8080${item.pic[k]}`;
+            // Use relative path so server on same origin serves it
+            const imgUrl = item.pic[k].startsWith('/') ? item.pic[k] : ('/' + item.pic[k]);
             images += `
               <div style="
                 position: relative;
@@ -519,12 +642,23 @@
             <p>Opportunity Search</p>
             <div class="underline">
               <input class="search-input" id="search_job" type="search" placeholder="Search jobs or listings..." />
-              <button onclick="search()"id="search_btn" style="margin-left:8px; height:42px; min-width:48px; border:none; border-radius:10px; background:linear-gradient(90deg, #4b6cff 80%, #2ecc71 100%); color:#fff; font-size:1.5rem; font-weight:700; box-shadow:0 2px 8px rgba(75,108,255,0.10); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.2s;">
+              <button onclick="applySearch()"id="search_btn" style="margin-left:8px; height:42px; min-width:48px; border:none; border-radius:10px; background:linear-gradient(90deg, #4b6cff 80%, #2ecc71 100%); color:#fff; font-size:1.5rem; font-weight:700; box-shadow:0 2px 8px rgba(75,108,255,0.10); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.2s;">
                 🔍
               </button>
             </div>
           </div>
           
+        </div>
+        <div class="filters">
+          <div class="filter-group">
+            <label>Age:</label>
+            <input type="number" id="filter_age_min" min="0" max="120" value="0" style="width:50px;" onchange="onFilterChange()"> -
+            <input type="number" id="filter_age_max" min="0" max="120" value="120" style="width:50px;" onchange="onFilterChange()">
+          </div>
+          <div class="filter-group">
+            <label>Location:</label>
+            <input type="text" id="filter_location" placeholder="City..." style="width:120px;" onchange="onFilterChange()">
+          </div>
         </div>
         ${listings}
 

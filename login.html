@@ -159,6 +159,36 @@
                 font-size: 14px;
             }
         }
+
+        .pwd-strength {
+            display: none;
+            font-size: 0.7rem;
+            margin-top: -12px;
+            margin-bottom: 12px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            background: #f5f5f5;
+            color: #666;
+            line-height: 1.2;
+        }
+
+        .pwd-strength.show {
+            display: block;
+        }
+
+        .pwd-req {
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .pwd-req.ok {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .pwd-req.no {
+            color: #999;
+        }
     </style>
 </head>
 
@@ -229,6 +259,13 @@
 
           <label>Password:</label>
           <input type="password" id="password" placeholder="Enter your password" required>
+          <div id="pwd_strength" class="pwd-strength">
+            <span class="pwd-req no" id="req_len">✓ 8+ chars</span>
+            <span class="pwd-req no" id="req_upper">✓ Upper</span>
+            <span class="pwd-req no" id="req_lower">✓ Lower</span>
+            <span class="pwd-req no" id="req_digit">✓ Digit</span>
+            <span class="pwd-req no" id="req_spec">✓ Special</span>
+          </div>
 
           <label>Confirm Password:</label>
           <input type="password" id="confirm_password" placeholder="Confirm your password" required>
@@ -239,6 +276,7 @@
 
             setupCitySearch();
             detectLocation();
+            setupPasswordStrengthIndicator();
         }
 
         async function detectLocation()
@@ -351,6 +389,51 @@
                     window.location.href = 'index.html';
                 } else alert('Login failed.');
             }).catch(() => alert('Request failed.'));
+        }
+
+        function setupPasswordStrengthIndicator()
+        {
+            const pwdInput = document.getElementById("password");
+            const strengthDiv = document.getElementById("pwd_strength");
+            if (!pwdInput || !strengthDiv) return;
+
+            function updateStrength()
+            {
+                const pw = pwdInput.value;
+                const has_len = pw.length >= 8;
+                const has_upper = /[A-Z]/.test(pw);
+                const has_lower = /[a-z]/.test(pw);
+                const has_digit = /\d/.test(pw);
+                const has_spec = /[\W_]/.test(pw);
+
+                const reqs = [
+                    { el: 'req_len', ok: has_len },
+                    { el: 'req_upper', ok: has_upper },
+                    { el: 'req_lower', ok: has_lower },
+                    { el: 'req_digit', ok: has_digit },
+                    { el: 'req_spec', ok: has_spec }
+                ];
+
+                reqs.forEach(r =>
+                {
+                    const el = document.getElementById(r.el);
+                    if (el)
+                    {
+                        el.classList.toggle('ok', r.ok);
+                        el.classList.toggle('no', !r.ok);
+                    }
+                });
+
+                if (pw.length > 0)
+                {
+                    strengthDiv.classList.add('show');
+                } else
+                {
+                    strengthDiv.classList.remove('show');
+                }
+            }
+
+            pwdInput.addEventListener('input', updateStrength);
         }
 
         function setupCitySearch()
