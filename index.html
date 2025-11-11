@@ -222,6 +222,8 @@
   <script>
     var email;
     var password;
+    // Use same-origin server URL for API calls
+    const SERVER_URL = '/';
 
     // Function to start a chat with a listing owner
     function startChat(ownerEmail)
@@ -233,11 +235,11 @@
         return;
       }
       // Open chat.html with the recipient's email
-      
+
       localStorage.setItem('userEmail', email);
       localStorage.setItem('userPassword', password)
       localStorage.setItem('chatWithUser', ownerEmail)
-      window.location.href=`chat.html`
+      window.location.href = `chat.html`
       //window.open(`chat.html?recipient=${encodeURIComponent(ownerEmail)}`, '_blank');
     }
     function main()
@@ -266,7 +268,7 @@
     async function search()
     {
       const job_search = document.getElementById("search_job").value;
-      const SERVER_IP = "https://ultrafind.onrender.com";  // Your server's IP address
+      const SERVER_IP = SERVER_URL;  // use same-origin server
 
       // Show searching state
       const home_screen = document.getElementById('home_screen');
@@ -280,7 +282,7 @@
       try
       {
         console.log('Attempting to connect to:', SERVER_IP);
-        const res = await fetch(SERVER_IP + '/', {
+        const res = await fetch(SERVER_IP, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -336,12 +338,33 @@
       window.location.href = 'settings.html';
 
     }
+    function goToSettings()
+    {
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userPassword', password);
+      window.location.href = 'settings.html';
+    }
+
+    function viewMyListings()
+    {
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userPassword', password);
+      window.location.href = 'view_listings.html';
+    }
+
+    function logout()
+    {
+      // clear any stored credentials and go to login
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userPassword');
+      window.location.href = 'login.html';
+    }
     async function get_first_letter()
     {
-      const SERVER_IP = "https://ultrafind.onrender.com";
+      const SERVER_IP = SERVER_URL;
       try
       {
-        const res = await fetch(SERVER_IP + '/', {
+        const res = await fetch(SERVER_IP, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -483,7 +506,13 @@
       home_screen.innerHTML = `
         <div class="top-decor">
           <div onclick="new_listing()" class="corner plus" title="Add"></div>
-          <div onclick="settings()" class="corner profile" title="Profile">P</div>
+          <div class="corner profile" id="profileBtn" title="Profile">P</div>
+          <div id="profileMenu" style="display:none; position:absolute; top:72px; right:10px; background:#fff; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:8px; z-index:60; min-width:170px;">
+            <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; border-radius:6px;" onclick="viewMyListings()">View My Listings</button>
+            <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; border-radius:6px;" onclick="goToSettings()">Settings</button>
+            <hr style="margin:8px 0; border:none; border-top:1px solid #eee;" />
+            <button style="display:block; width:100%; padding:8px 10px; border:none; background:transparent; text-align:left; cursor:pointer; color:#c53030; border-radius:6px;" onclick="logout()">Log out</button>
+          </div>
           <div class="top-home" onclick="homeClick(this)">Home</div>
           <div class="brand">
             <h1>UltraFind+</h1>
@@ -500,7 +529,43 @@
         ${listings}
 
 
-      `; document.querySelector('.corner.profile').textContent = 'A'; // Change to any le
+      `;
+
+      // Populate profile initial from server and wire menu actions
+      (async function setProfileInitial()
+      {
+        try
+        {
+          const res = await fetch(SERVER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd: 'get_profile', email: email, password: password })
+          });
+          const data = await res.json();
+          const el = document.querySelector('.corner.profile');
+          if (data && data.success && data.profile && data.profile.first_name)
+          {
+            el.textContent = (data.profile.first_name[0] || 'U').toUpperCase();
+          } else
+          {
+            el.textContent = (email && email[0]) ? email[0].toUpperCase() : 'U';
+          }
+        } catch (e)
+        {
+          const el = document.querySelector('.corner.profile');
+          el.textContent = (email && email[0]) ? email[0].toUpperCase() : 'U';
+        }
+
+        // wire up profile button toggle and menu actions
+        const btn = document.getElementById('profileBtn');
+        const menu = document.getElementById('profileMenu');
+        if (btn && menu)
+        {
+          btn.onclick = (ev) => { ev.stopPropagation(); menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; };
+          // close when clicking outside
+          document.addEventListener('click', (e) => { if (!btn.contains(e.target) && !menu.contains(e.target)) menu.style.display = 'none'; });
+        }
+      })();
 
       const underline = home_screen.querySelector('.underline');
       const input = underline.querySelector('.search-input');

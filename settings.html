@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1"/>
     <title>Settings</title>
     <style>
         :root {
@@ -174,6 +174,9 @@
 </head>
 
 <body onload="main()">
+    <button id="backButton"
+        style="position:absolute; left:18px; top:18px; padding:8px 10px; border-radius:8px; border:none; background:#fff; box-shadow:0 4px 10px rgba(0,0,0,0.06); cursor:pointer;"
+        onclick="backToHome()">←</button>
     <h1>Account Settings</h1>
     <div class="settings-container" id="settings_screen"></div>
 
@@ -197,7 +200,7 @@
 
         async function easy_request(requestData)
         {
-            const SERVER_IP = "https://ultrafind.onrender.com";
+            const SERVER_IP = '/';
 
             const payload = JSON.stringify({
                 ...requestData,
@@ -209,7 +212,7 @@
 
             try
             {
-                const response = await fetch(    + '/', {
+                const response = await fetch(SERVER_IP, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -534,6 +537,14 @@
         
         <button onclick="change_age()">Change Age</button>
       `;
+        }
+
+        function backToHome()
+        {
+            // navigate back to index and preserve credentials
+            localStorage.setItem('userEmail', email);
+            localStorage.setItem('userPassword', password);
+            window.location.href = 'index.html';
         }
 
         document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target.id === 'modalOverlay') closeModal(); });

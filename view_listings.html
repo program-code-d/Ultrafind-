@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Listings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: Poppins, sans-serif;
+            margin: 0;
+            background: #f5f7fb;
+            color: #111
+        }
+
+        .top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            background: #fff
+        }
+
+        .back {
+            border: none;
+            background: transparent;
+            font-size: 20px;
+            cursor: pointer
+        }
+
+        .container {
+            padding: 16px
+        }
+
+        .card {
+            background: #fff;
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            margin-bottom: 12px
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <div class="top"><button class="back" onclick="goHome()">←</button>
+        <h2>My Listings</h2>
+    </div>
+    <div class="container" id="listings"></div>
+    <script>
+        const SERVER_URL = '/';
+        let email, password;
+        async function main()
+        {
+            email = localStorage.getItem('userEmail');
+            password = localStorage.getItem('userPassword');
+            if (!email || !password) { window.location.href = 'login.html'; return; }
+            // clear stored cred so other pages keep them in memory
+            localStorage.removeItem('userEmail'); localStorage.removeItem('userPassword');
+            await loadListings();
+        }
+        async function loadListings()
+        {
+            try
+            {
+                const res = await fetch(SERVER_URL, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cmd: 'get_my_listings', email: email, password: password })
+                });
+                const data = await res.json();
+                const el = document.getElementById('listings'); el.innerHTML = '';
+                if (data && data.success && Array.isArray(data.listings) && data.listings.length)
+                {
+                    data.listings.forEach(l =>
+                    {
+                        const card = document.createElement('div'); card.className = 'card';
+                        card.innerHTML = `<h3>${l.listing_title || ''}</h3><p>${(l.description || '')}</p>`;
+                        el.appendChild(card);
+                    });
+                } else
+                {
+                    el.innerHTML = '<div style="color:#657085">No listings found</div>';
+                }
+            } catch (e)
+            {
+                document.getElementById('listings').innerHTML = '<div style="color:#c53030">Failed to load listings</div>';
+                console.error(e);
+            }
+        }
+        function goHome() { localStorage.setItem('userEmail', email); localStorage.setItem('userPassword', password); window.location.href = 'index.html'; }
+    </script>
+</body>
+
+</html>

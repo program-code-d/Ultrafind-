@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -141,9 +142,17 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
         }
 
         @media (max-width: 768px) {
@@ -165,21 +174,22 @@
         }
     </style>
 </head>
+
 <body onload="main()">
     <div class="chat-header">
         <button class="back-button" onclick="goBack()">←</button>
         <h2 id="chat-title">Chat</h2>
     </div>
-    
+
     <div class="chat-container" id="chat-container"></div>
-    
+
     <div class="typing-indicator" id="typing-indicator">
         User is typing...
     </div>
-    
+
     <div class="input-container">
-        <input type="text" class="message-input" id="message-input" placeholder="Type a message..." 
-               onkeypress="if(event.key === 'Enter') sendMessage()">
+        <input type="text" class="message-input" id="message-input" placeholder="Type a message..."
+            onkeypress="if(event.key === 'Enter') sendMessage()">
         <button class="send-button" onclick="sendMessage()">Send</button>
     </div>
 
@@ -188,25 +198,53 @@
         var password;
         var otherUser;
         var messages = [];
-        const SERVER_IP = "https://ultrafind.onrender.com";
+        // Use relative URL so the app talks to the same server serving the files
+        const SERVER_URL = "/";
 
-        function main() {
+        function main()
+        {
             const userEmail = localStorage.getItem('userEmail');
             const userPassword = localStorage.getItem('userPassword');
             otherUser = localStorage.getItem('chatWithUser');
 
-            if (!userEmail || !userPassword || !otherUser) {
+            if (!userEmail || !userPassword || !otherUser)
+            {
                 window.location.href = 'index.html';
                 return;
             }
 
             email = userEmail;
             password = userPassword;
-            
-            // Update chat title
-            document.getElementById('chat-title').textContent = `Chat with ${otherUser}`;
-            
-            // Clear stored credentials
+
+            // Load nickname if present and show it; allow editing
+            const titleEl = document.getElementById('chat-title');
+            const nickname = localStorage.getItem('nick_' + otherUser) || '';
+            titleEl.textContent = nickname ? `${nickname} (${otherUser})` : `Chat with ${otherUser}`;
+
+            // small edit button to set nickname
+            const editBtn = document.createElement('button');
+            editBtn.textContent = '✎';
+            editBtn.style.marginLeft = '8px';
+            editBtn.style.fontSize = '0.85rem';
+            editBtn.style.cursor = 'pointer';
+            editBtn.onclick = () =>
+            {
+                const newNick = prompt('Set a nickname for ' + otherUser + ':', localStorage.getItem('nick_' + otherUser) || '');
+                if (newNick === null) return;
+                if (newNick.trim() === '')
+                {
+                    localStorage.removeItem('nick_' + otherUser);
+                } else
+                {
+                    localStorage.setItem('nick_' + otherUser, newNick.trim());
+                }
+                const nick = localStorage.getItem('nick_' + otherUser) || '';
+                titleEl.textContent = nick ? `${nick} (${otherUser})` : `Chat with ${otherUser}`;
+                titleEl.appendChild(editBtn);
+            };
+            titleEl.appendChild(editBtn);
+
+            // Clear stored credentials from localStorage (we keep them in memory)
             localStorage.removeItem('userEmail');
             localStorage.removeItem('userPassword');
             localStorage.removeItem('chatWithUser');
@@ -218,15 +256,18 @@
             setInterval(loadMessages, 3000);
         }
 
-        function goBack() {
+        function goBack()
+        {
             localStorage.setItem('userEmail', email);
             localStorage.setItem('userPassword', password);
             window.location.href = 'index.html';
         }
 
-        async function loadMessages() {
-            try {
-                const response = await fetch(SERVER_IP + '/', {
+        async function loadMessages()
+        {
+            try
+            {
+                const response = await fetch(SERVER_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -240,34 +281,39 @@
                 });
 
                 const data = await response.json();
-                if (data.messages && !messagesEqual(data.messages, messages)) {
+                if (data.messages && !messagesEqual(data.messages, messages))
+                {
                     messages = data.messages;
                     displayMessages();
                 }
-            } catch (error) {
+            } catch (error)
+            {
                 console.error('Failed to load messages:', error);
             }
         }
 
-        function messagesEqual(a, b) {
+        function messagesEqual(a, b)
+        {
             if (a.length !== b.length) return false;
             return JSON.stringify(a) === JSON.stringify(b);
         }
 
-        function displayMessages() {
+        function displayMessages()
+        {
             const container = document.getElementById('chat-container');
             container.innerHTML = '';
 
-            messages.forEach(msg => {
+            messages.forEach(msg =>
+            {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${msg.from === email ? 'sent' : 'received'}`;
-                
+
                 const time = new Date(msg.timestamp).toLocaleTimeString();
                 messageDiv.innerHTML = `
                     ${msg.message}
                     <div class="message-time">${time}</div>
                 `;
-                
+
                 container.appendChild(messageDiv);
             });
 
@@ -275,14 +321,16 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        async function sendMessage() {
+        async function sendMessage()
+        {
             const input = document.getElementById('message-input');
             const message = input.value.trim();
-            
+
             if (!message) return;
 
-            try {
-                const response = await fetch(SERVER_IP + '/', {
+            try
+            {
+                const response = await fetch(SERVER_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -297,13 +345,16 @@
                 });
 
                 const data = await response.json();
-                if (data.success) {
+                if (data.success)
+                {
                     input.value = '';
                     await loadMessages();
-                } else {
+                } else
+                {
                     alert('Failed to send message');
                 }
-            } catch (error) {
+            } catch (error)
+            {
                 console.error('Failed to send message:', error);
                 alert('Failed to send message: ' + error.message);
             }
@@ -311,10 +362,12 @@
 
         // Handle typing indicator
         let typingTimeout;
-        document.getElementById('message-input').addEventListener('input', () => {
+        document.getElementById('message-input').addEventListener('input', () =>
+        {
             clearTimeout(typingTimeout);
             // TODO: Implement typing indicator through server
         });
     </script>
 </body>
+
 </html>
